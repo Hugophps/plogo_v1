@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter: Chrome (port 3000)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "args": [
+        "-d",
+        "chrome",
+        "--web-port",
+        "3000",
+        "--dart-define",
+        "SUPABASE_URL=https://zyjnyelwkydqgtcmcmjn.supabase.co",
+        "--dart-define",
+        "SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5am55ZWx3a3lkcWd0Y21jbWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1ODMzMzMsImV4cCI6MjA3NzE1OTMzM30.FlYMTnc-nw-dOIKcOnyX_Vd7oLkUEMXheOIujf-Rhb4"
+      ]
+    }
+  ]
+}

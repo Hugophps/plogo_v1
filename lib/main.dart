@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'env.dart';
-import 'auth/sign_in_page.dart';
+import 'core/supabase_bootstrap.dart';
+import 'features/auth/signin_page.dart';
+import 'features/home/dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Validate environment variables provided via --dart-define
-  if (Env.supabaseUrl.isEmpty || Env.supabaseAnonKey.isEmpty) {
-    throw Exception(
-      'Missing SUPABASE_URL or SUPABASE_ANON_KEY. Provide them via --dart-define.',
-    );
-  }
-
-  await Supabase.initialize(
-    url: Env.supabaseUrl,
-    anonKey: Env.supabaseAnonKey,
-    // On web, PKCE is recommended for magic link flows.
-    authFlowType: AuthFlowType.pkce,
-  );
-
+  await initSupabase();
   runApp(const MyApp());
 }
 
@@ -32,27 +19,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
+        useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      routes: {
-        '/signin': (context) => const SignInPage(),
-      },
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: supabase.auth.currentSession == null
+          ? const SignInPage()
+          : const DashboardPage(),
     );
   }
 }
