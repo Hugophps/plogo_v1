@@ -1,6 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'env.dart';
+import 'auth/sign_in_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Validate environment variables provided via --dart-define
+  if (Env.supabaseUrl.isEmpty || Env.supabaseAnonKey.isEmpty) {
+    throw Exception(
+      'Missing SUPABASE_URL or SUPABASE_ANON_KEY. Provide them via --dart-define.',
+    );
+  }
+
+  await Supabase.initialize(
+    url: Env.supabaseUrl,
+    anonKey: Env.supabaseAnonKey,
+    // On web, PKCE is recommended for magic link flows.
+    authFlowType: AuthFlowType.pkce,
+  );
+
   runApp(const MyApp());
 }
 
@@ -30,6 +49,9 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
+      routes: {
+        '/signin': (context) => const SignInPage(),
+      },
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -108,6 +130,11 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pushNamed('/signin'),
+              child: const Text('Se connecter'),
             ),
           ],
         ),
