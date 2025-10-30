@@ -6,15 +6,16 @@ class DriverHomePage extends StatelessWidget {
   const DriverHomePage({
     super.key,
     required this.profile,
-    required this.onSignOut,
+    required this.onOpenProfile,
   });
 
   final Profile profile;
-  final VoidCallback onSignOut;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final initials = _initialsFromName(profile.fullName);
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       body: SafeArea(
@@ -32,23 +33,27 @@ class DriverHomePage extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Tooltip(
-                    message: 'Se déconnecter',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(22),
-                      onTap: onSignOut,
+                  InkWell(
+                    onTap: onOpenProfile,
+                    borderRadius: BorderRadius.circular(30),
+                    child: Container(
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF2C75FF),
+                          width: 2,
+                        ),
+                      ),
                       child: CircleAvatar(
-                        radius: 22,
+                        radius: 26,
                         backgroundColor: const Color(0xFFE7ECFF),
                         backgroundImage: profile.avatarUrl != null
                             ? NetworkImage(profile.avatarUrl!)
                             : null,
                         child: profile.avatarUrl == null
                             ? Text(
-                                (profile.fullName
-                                        ?.substring(0, 1)
-                                        .toUpperCase() ??
-                                    'P'),
+                                initials,
                                 style: const TextStyle(
                                   color: Color(0xFF2C75FF),
                                   fontWeight: FontWeight.w700,
@@ -66,11 +71,11 @@ class DriverHomePage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
-                      color: Colors.black12.withOpacity(0.06),
+                      color: Color.fromRGBO(0, 0, 0, 0.06),
                       blurRadius: 18,
-                      offset: const Offset(0, 8),
+                      offset: Offset(0, 8),
                     ),
                   ],
                 ),
@@ -143,6 +148,17 @@ class DriverHomePage extends StatelessWidget {
       ),
     );
   }
+
+  String _initialsFromName(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) return 'P';
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    final first = parts.isNotEmpty ? parts.first : '';
+    final last = parts.length > 1 ? parts.last : '';
+    final buffer = StringBuffer();
+    if (first.isNotEmpty) buffer.write(first[0]);
+    if (last.isNotEmpty) buffer.write(last[0]);
+    return buffer.isEmpty ? 'P' : buffer.toString().toUpperCase();
+  }
 }
 
 class _DriverSectionCard extends StatelessWidget {
@@ -163,20 +179,20 @@ class _DriverSectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black12.withOpacity(0.05),
+            color: Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 15,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF2C75FF).withOpacity(0.1),
+              color: Color.fromRGBO(44, 117, 255, 0.1),
             ),
             padding: const EdgeInsets.all(12),
             child: Icon(icon, color: const Color(0xFF2C75FF)),

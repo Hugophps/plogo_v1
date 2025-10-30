@@ -1,9 +1,8 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/supabase_bootstrap.dart';
@@ -29,47 +28,61 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
   final _repo = const ProfileRepository();
 
   late final TextEditingController _emailController;
-  final _phoneController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  final _streetNameController = TextEditingController();
-  final _streetNumberController = TextEditingController();
-  final _postalCodeController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController(text: 'France');
-  final _descriptionController = TextEditingController();
-  final _vehicleBrandController = TextEditingController();
-  final _vehicleModelController = TextEditingController();
-  final _vehiclePlateController = TextEditingController();
-  final _vehiclePlugController = TextEditingController();
+  late final TextEditingController _phoneController;
+  late final TextEditingController _fullNameController;
+  late final TextEditingController _streetNameController;
+  late final TextEditingController _streetNumberController;
+  late final TextEditingController _postalCodeController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _countryController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _vehicleBrandController;
+  late final TextEditingController _vehicleModelController;
+  late final TextEditingController _vehiclePlateController;
+  late final TextEditingController _vehiclePlugController;
 
-  bool _saving = false;
   Uint8List? _avatarBytes;
   String? _remoteAvatarUrl;
-
-  String get _initials {
-    final name = _fullNameController.text.trim();
-    if (name.isEmpty) return 'PL';
-    final parts = name.split(RegExp(r'\s+'));
-    final first = parts.isNotEmpty ? parts.first : '';
-    final last = parts.length > 1 ? parts.last : '';
-    return ((first.isNotEmpty ? first[0] : '') +
-            (last.isNotEmpty ? last[0] : 'P'))
-        .toUpperCase();
-  }
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     final profile = widget.profile;
     _emailController = TextEditingController(text: profile?.email ?? '');
-    _fullNameController.text = profile?.fullName ?? '';
-    _phoneController.text = profile?.phoneNumber ?? '';
-    _descriptionController.text = profile?.description ?? '';
+    _phoneController = TextEditingController(text: profile?.phoneNumber ?? '');
+    _fullNameController = TextEditingController(text: profile?.fullName ?? '');
+    _streetNameController = TextEditingController(
+      text: profile?.streetName ?? '',
+    );
+    _streetNumberController = TextEditingController(
+      text: profile?.streetNumber ?? '',
+    );
+    _postalCodeController = TextEditingController(
+      text: profile?.postalCode ?? '',
+    );
+    _cityController = TextEditingController(text: profile?.city ?? '');
+    _countryController = TextEditingController(
+      text: profile?.country ?? 'France',
+    );
+    _descriptionController = TextEditingController(
+      text: profile?.description ?? '',
+    );
+    _vehicleBrandController = TextEditingController(
+      text: profile?.vehicleBrand ?? '',
+    );
+    _vehicleModelController = TextEditingController(
+      text: profile?.vehicleModel ?? '',
+    );
+    _vehiclePlateController = TextEditingController(
+      text: profile?.vehiclePlate ?? '',
+    );
+    _vehiclePlugController = TextEditingController(
+      text: profile?.vehiclePlugType ?? '',
+    );
     _remoteAvatarUrl = profile?.avatarUrl;
     _fullNameController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     });
   }
 
@@ -121,42 +134,23 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
     );
   }
 
-  Widget _buildSection(String title, List<Widget> children) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C75FF),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...children,
-      ],
-    );
-  }
-
   Future<void> _pickAvatar() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         withData: true,
       );
-      if (result == null || result.files.isEmpty) {
-        return;
-      }
+      if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;
       final bytes = file.bytes;
       if (bytes == null) {
-        throw Exception('Impossible de lire le fichier selectionne.');
+        throw Exception('Impossible de lire le fichier sÃ©lectionnÃ©.');
       }
 
       final decoded = img.decodeImage(bytes);
       if (decoded == null) {
-        throw Exception('Format d\'image non supporte.');
+        throw Exception('Format dâ€™image non supportÃ©.');
       }
 
       final resized = img.copyResize(decoded, width: 100, height: 100);
@@ -168,7 +162,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
       } while (encoded.length > 100 * 1024 && quality >= 30);
 
       if (encoded.length > 100 * 1024) {
-        throw Exception('Impossible de compresser l\'image sous 100 Ko.');
+        throw Exception('Impossible de compresser la photo sous 100 Ko.');
       }
 
       setState(() {
@@ -183,80 +177,15 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
     }
   }
 
-  Widget _buildAvatarPicker() {
-    Widget avatarContent;
-    if (_avatarBytes != null) {
-      avatarContent = CircleAvatar(
-        radius: 36,
-        backgroundImage: MemoryImage(_avatarBytes!),
-      );
-    } else if (_remoteAvatarUrl != null && _remoteAvatarUrl!.isNotEmpty) {
-      avatarContent = CircleAvatar(
-        radius: 36,
-        backgroundImage: NetworkImage(_remoteAvatarUrl!),
-      );
-    } else {
-      avatarContent = CircleAvatar(
-        radius: 36,
-        backgroundColor: const Color(0xFFE7ECFF),
-        child: Text(
-          _initials,
-          style: const TextStyle(
-            color: Color(0xFF2C75FF),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Photo de profil (optionnel)',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C75FF),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            avatarContent,
-            const SizedBox(width: 16),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _saving ? null : _pickAvatar,
-                icon: const Icon(Icons.upload_outlined),
-                label: const Text('Telecharger une photo'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2C75FF),
-                  side: const BorderSide(color: Color(0xFF2C75FF)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
     try {
       String? avatarUrl = _remoteAvatarUrl;
       if (_avatarBytes != null) {
         final user = supabase.auth.currentUser;
-        if (user == null) {
-          throw Exception('Utilisateur non connecte');
-        }
+        if (user == null) throw Exception('Utilisateur non connectÃ©');
         final path = 'avatars/${user.id}.jpg';
         await supabase.storage
             .from('avatars')
@@ -304,6 +233,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final initials = _initialsFromName(_fullNameController.text);
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       body: SafeArea(
@@ -321,7 +251,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
               ),
               child: const Center(
                 child: Text(
-                  'Creation du compte',
+                  'CrÃ©ation du compte',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -339,7 +269,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'Bienvenue !\nVous \u00EAtes \u00E0 quelques informations d\'avoir votre compte \u2705',
+                        "Bienvenue !\nVous Ãªtes Ã  quelques informations d'avoir votre compte âœ…",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -347,9 +277,9 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      _buildAvatarPicker(),
+                      _buildAvatarPicker(initials),
                       const SizedBox(height: 24),
-                      _buildSection('Informations generales', [
+                      _buildSection('Informations gÃ©nÃ©rales', [
                         TextFormField(
                           controller: _emailController,
                           readOnly: true,
@@ -360,18 +290,18 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
                           decoration: _fieldDecoration(
-                            'Telephone',
+                            'TÃ©lÃ©phone',
                             required: true,
                           ),
                           validator: _validateRequired,
                         ),
                       ]),
                       const SizedBox(height: 24),
-                      _buildSection('A propos de vous', [
+                      _buildSection('Ã€ propos de vous', [
                         TextFormField(
                           controller: _fullNameController,
                           decoration: _fieldDecoration(
-                            'Prenom et nom',
+                            'PrÃ©nom et nom',
                             required: true,
                           ),
                           validator: _validateRequired,
@@ -389,7 +319,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                         TextFormField(
                           controller: _streetNumberController,
                           decoration: _fieldDecoration(
-                            'Numero de rue',
+                            'NÂ° de rue',
                             required: true,
                           ),
                           validator: _validateRequired,
@@ -422,12 +352,12 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                           maxLines: null,
                           maxLength: 150,
                           decoration: _fieldDecoration(
-                            'Une petite presentation de vous',
+                            'Une petite prÃ©sentation de vous',
                           ).copyWith(counterText: ''),
                         ),
                       ]),
                       const SizedBox(height: 24),
-                      _buildSection('Votre vehicule electrique principal', [
+                      _buildSection('Votre vÃ©hicule Ã©lectrique principal', [
                         TextFormField(
                           controller: _vehicleBrandController,
                           decoration: _fieldDecoration('Marque'),
@@ -435,7 +365,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _vehicleModelController,
-                          decoration: _fieldDecoration('Modele'),
+                          decoration: _fieldDecoration('ModÃ¨le'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -454,7 +384,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                       ]),
                       const SizedBox(height: 24),
                       const Text(
-                        'Je declare que ces informations sont correctes. En m\'inscrivant, je valide avoir pris connaissance des CGU et de la politique de confidentialite de Plogo.',
+                        'Je dÃ©clare que ces informations sont correctes. En mâ€™inscrivant, je confirme avoir pris connaissance des CGU et de la politique de confidentialitÃ© de Plogo.',
                         style: TextStyle(fontSize: 12, color: Colors.black54),
                       ),
                       const SizedBox(height: 24),
@@ -473,7 +403,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                                     ),
                                   ),
                                 )
-                              : const Text('Valider et creer'),
+                              : const Text('Valider et crÃ©er'),
                         ),
                       ),
                     ],
@@ -485,5 +415,103 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildAvatarPicker(String initials) {
+    Widget avatar;
+    if (_avatarBytes != null) {
+      avatar = CircleAvatar(
+        radius: 40,
+        backgroundImage: MemoryImage(_avatarBytes!),
+      );
+    } else if (_remoteAvatarUrl != null && _remoteAvatarUrl!.isNotEmpty) {
+      avatar = CircleAvatar(
+        radius: 40,
+        backgroundImage: NetworkImage(_remoteAvatarUrl!),
+      );
+    } else {
+      avatar = CircleAvatar(
+        radius: 40,
+        backgroundColor: const Color(0xFFE7ECFF),
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: Color(0xFF2C75FF),
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Photo de profil (optionnel)',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C75FF),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF2C75FF), width: 2),
+              ),
+              child: avatar,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _saving ? null : _pickAvatar,
+                icon: const Icon(Icons.upload_outlined),
+                label: const Text('TÃ©lÃ©charger une photo'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2C75FF),
+                  side: const BorderSide(color: Color(0xFF2C75FF)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C75FF),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+
+  String _initialsFromName(String? name) {
+    final trimmed = name?.trim();
+    if (trimmed == null || trimmed.isEmpty) return 'P';
+    final parts = trimmed.split(RegExp(r'\s+'));
+    final first = parts.isNotEmpty ? parts.first : '';
+    final last = parts.length > 1 ? parts.last : '';
+    final buffer = StringBuffer();
+    if (first.isNotEmpty) buffer.write(first[0]);
+    if (last.isNotEmpty) buffer.write(last[0]);
+    return buffer.isEmpty ? 'P' : buffer.toString().toUpperCase();
   }
 }

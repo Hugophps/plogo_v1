@@ -10,6 +10,7 @@ import 'features/home/driver_home_page.dart';
 import 'features/home/owner_home_page.dart';
 import 'features/landing/landing_page.dart';
 import 'features/profile/models/profile.dart';
+import 'features/profile/profile_page.dart';
 import 'features/profile/profile_repository.dart';
 
 Future<void> main() async {
@@ -129,6 +130,21 @@ class _AuthGateState extends State<AuthGate> {
     await supabase.auth.signOut();
   }
 
+  Future<void> _deleteAccount() async {
+    try {
+      await _repo.deleteAccount();
+      await supabase.auth.signOut();
+      if (mounted) {
+        setState(() {
+          _profile = null;
+          _destination = AuthDestination.landing;
+        });
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   void _onAccountCompleted() {
     final session = supabase.auth.currentSession;
     if (session != null) {
@@ -141,6 +157,48 @@ class _AuthGateState extends State<AuthGate> {
       _profile = profile;
       _destination = _resolveDestination(profile);
     });
+  }
+
+  void _onProfileUpdated(Profile profile) {
+    setState(() {
+      _profile = profile;
+      _destination = _resolveDestination(profile);
+    });
+  }
+
+  Future<Profile?> _refreshProfile() async {
+    final refreshed = await _repo.fetchCurrentProfile();
+    if (refreshed != null) {
+      setState(() {
+        _profile = refreshed;
+        _destination = _resolveDestination(refreshed);
+      });
+    }
+    return refreshed;
+  }
+
+  Future<void> _openProfilePage(BuildContext context) async {
+    final current = _profile;
+    if (current == null) return;
+
+    final deleted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(
+          profile: current,
+          onProfileUpdated: _onProfileUpdated,
+          onSignOut: _signOut,
+          onAccountDeleted: _deleteAccount,
+          refreshProfile: _refreshProfile,
+        ),
+      ),
+    );
+
+    if (deleted == true && mounted) {
+      setState(() {
+        _profile = null;
+        _destination = AuthDestination.landing;
+      });
+    }
   }
 
   @override
@@ -169,9 +227,15 @@ class _AuthGateState extends State<AuthGate> {
           onRoleSelected: _onRoleSelected,
         );
       case AuthDestination.ownerHome:
-        return OwnerHomePage(profile: _profile!, onSignOut: _signOut);
+        return OwnerHomePage(
+          profile: _profile!,
+          onOpenProfile: () => _openProfilePage(context),
+        );
       case AuthDestination.driverHome:
-        return DriverHomePage(profile: _profile!, onSignOut: _signOut);
+        return DriverHomePage(
+          profile: _profile!,
+          onOpenProfile: () => _openProfilePage(context),
+        );
     }
   }
 }

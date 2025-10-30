@@ -63,4 +63,13 @@ class ProfileRepository {
 
     return Profile.fromMap(response);
   }
+
+  Future<void> deleteAccount() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Aucun utilisateur connecté');
+    }
+
+    await _client.rpc('delete_current_user');
+  }
 }

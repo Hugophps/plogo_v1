@@ -28,11 +28,12 @@ class _LandingPageState extends State<LandingPage> {
       );
       return;
     }
+
     setState(() => _loading = true);
     try {
       await supabase.auth.signInWithOtp(
         email: email,
-        // Mettre à jour si besoin pour l’environnement de dev
+        // Mettre à jour si besoin pour votre environnement de développement.
         emailRedirectTo: 'http://localhost:3000/',
       );
       if (!mounted) return;
@@ -56,23 +57,18 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Image de fond officielle (avec fallback en cas d'erreur d'asset)
-          // Utiliser un widget Image permet d'avoir un errorBuilder sur web.
-          // Essaie d'abord JPG puis PNG en fallback avant le dégradé.
           Image.asset(
             'assets/images/landing_bg.jpg',
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stack) {
-              // Fallback PNG si le JPG n'existe pas.
+            errorBuilder: (context, error, stackTrace) {
               return Image.asset(
                 'assets/images/landing_bg.png',
                 fit: BoxFit.cover,
-                errorBuilder: (context2, error2, stack2) {
+                errorBuilder: (_, __, ___) {
                   return Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -86,17 +82,15 @@ class _LandingPageState extends State<LandingPage> {
               );
             },
           ),
-          // Voile très léger pour lisibilité
-          Container(color: Colors.white.withOpacity(0.06)),
+          Container(color: const Color.fromRGBO(255, 255, 255, 0.06)),
           SafeArea(
             child: Column(
               children: [
                 const SizedBox(height: 24),
-                // Logo Plogo
                 Image.asset('assets/images/logo.png', height: 72),
                 const Spacer(),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
