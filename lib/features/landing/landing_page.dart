@@ -36,19 +36,19 @@ class _LandingPageState extends State<LandingPage> {
         emailRedirectTo: 'http://localhost:3000/',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lien magique envoyé à $email')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lien magique envoyé à $email')));
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.message}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: ${e.message}')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur inattendue: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -61,17 +61,33 @@ class _LandingPageState extends State<LandingPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Image de fond officielle
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/landing_bg.jpg'),
+          // Image de fond officielle (avec fallback en cas d'erreur d'asset)
+          // Utiliser un widget Image permet d'avoir un errorBuilder sur web.
+          // Essaie d'abord JPG puis PNG en fallback avant le dégradé.
+          Image.asset(
+            'assets/images/landing_bg.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stack) {
+              // Fallback PNG si le JPG n'existe pas.
+              return Image.asset(
+                'assets/images/landing_bg.png',
                 fit: BoxFit.cover,
-              ),
-            ),
+                errorBuilder: (context2, error2, stack2) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF2C75FF), Color(0xFF3B5AFF)],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           ),
-          // Voile blanc léger pour lisibilité
-          Container(color: Colors.white.withOpacity(0.15)),
+          // Voile très léger pour lisibilité
+          Container(color: Colors.white.withOpacity(0.06)),
           SafeArea(
             child: Column(
               children: [
@@ -108,7 +124,9 @@ class _LandingPageState extends State<LandingPage> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation(
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Text('Se connecter'),

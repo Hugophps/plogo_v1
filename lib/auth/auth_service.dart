@@ -30,4 +30,3 @@ class AuthService {
     await _client.auth.signOut();
   }
 }
-

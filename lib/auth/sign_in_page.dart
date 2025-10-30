@@ -27,14 +27,14 @@ class _SignInPageState extends State<SignInPage> {
     try {
       await _auth.sendMagicLink(email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Magic link envoyé à $email')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Magic link envoyé à $email')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -70,7 +70,9 @@ class _SignInPageState extends State<SignInPage> {
                     validator: (value) {
                       final v = value?.trim() ?? '';
                       if (v.isEmpty) return 'Entrez votre email';
-                      final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v);
+                      final ok = RegExp(
+                        r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                      ).hasMatch(v);
                       if (!ok) return 'Email invalide';
                       return null;
                     },
@@ -95,4 +97,3 @@ class _SignInPageState extends State<SignInPage> {
     );
   }
 }
-

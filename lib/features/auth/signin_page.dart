@@ -23,9 +23,9 @@ class _SignInPageState extends State<SignInPage> {
   Future<void> _sendMagicLink() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Entrez votre email.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Entrez votre email.')));
       return;
     }
     setState(() => _submitting = true);
@@ -35,19 +35,19 @@ class _SignInPageState extends State<SignInPage> {
         emailRedirectTo: 'http://localhost:3000/',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lien envoyé à $email')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lien envoyé à $email')));
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.message}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: ${e.message}')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur inattendue: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -98,4 +98,3 @@ class _SignInPageState extends State<SignInPage> {
     );
   }
 }
-
