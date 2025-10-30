@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/supabase_bootstrap.dart';
 import 'features/auth/signin_page.dart';
+import 'features/landing/landing_page.dart';
+import 'features/account/account_completion_page.dart';
 import 'features/home/dashboard_page.dart';
 
 Future<void> main() async {
@@ -17,13 +19,19 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Plogo',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2C75FF)),
       ),
+      routes: {
+        '/signin': (_) => const SignInPage(),
+        '/landing': (_) => const LandingPage(),
+        '/complete-account': (_) => const AccountCompletionPage(),
+        '/dashboard': (_) => const DashboardPage(),
+      },
       home: supabase.auth.currentSession == null
-          ? const SignInPage()
+          ? const LandingPage()
           : const DashboardPage(),
     );
   }
