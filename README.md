@@ -1,16 +1,18 @@
-# plogo_v1
+# Plogo (MVP)
 
-A new Flutter project.
+PWA Flutter (web) pour mettre en relation propriétaires de bornes et conducteurs de voitures électriques.
 
-## Getting Started
+Important: toujours lire et respecter `CONTEXT.md` avant toute modification. L’app est mobile‑first, 100% en français, et utilise Supabase (auth + données).
 
-This project is a starting point for a Flutter application.
+## Démarrer
 
-A few resources to get you started if this is your first Flutter project:
+1) Installer Flutter stable et configurer le canal web: `flutter config --enable-web`.
+2) Renseigner les secrets via `--dart-define` ou configuration IDE (pas de secrets dans le code).
+3) Lancer en mode web: `flutter run -d chrome`.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Lignes directrices clés
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Rôles exclusifs: «Propriétaire de borne» OU «Conducteur».
+- UI conforme à la DA Plogo (bleu #2C75FF, jaune #FFB347, bleu secondaire #3B5AFF; fond blanc, texte noir).
+- Icônes cohérentes (ex. Material Symbols Outlined) et textes en français.
+- Voir `CONTEXT.md` pour objectifs, priorités MVP, et schéma Supabase suggéré.
