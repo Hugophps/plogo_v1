@@ -8,6 +8,7 @@ class Profile {
     this.avatarUrl,
     this.stationName,
     this.nextSessionStatus,
+    this.description,
     required this.isCompleted,
   });
 
@@ -19,6 +20,7 @@ class Profile {
   final String? avatarUrl;
   final String? stationName;
   final String? nextSessionStatus;
+  final String? description;
   final bool isCompleted;
 
   bool get hasRole => role == 'owner' || role == 'driver';
@@ -32,6 +34,7 @@ class Profile {
     String? avatarUrl,
     String? stationName,
     String? nextSessionStatus,
+    String? description,
     bool? isCompleted,
   }) {
     return Profile(
@@ -43,6 +46,7 @@ class Profile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       stationName: stationName ?? this.stationName,
       nextSessionStatus: nextSessionStatus ?? this.nextSessionStatus,
+      description: description ?? this.description,
       isCompleted: isCompleted ?? this.isCompleted,
     );
   }
@@ -57,6 +61,7 @@ class Profile {
       avatarUrl: map['avatar_url'] as String?,
       stationName: map['station_name'] as String?,
       nextSessionStatus: map['next_session_status'] as String?,
+      description: map['description'] as String?,
       isCompleted: (map['profile_completed'] as bool?) ?? false,
     );
   }
