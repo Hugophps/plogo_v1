@@ -80,10 +80,10 @@ class _ProfilePageState extends State<ProfilePage> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ProfileLegalPage(
-          title: isPrivacy ? 'ConfidentialitÃ©s' : 'CGU',
+          title: isPrivacy ? 'Confidentialités' : 'CGU',
           heading: isPrivacy
-              ? 'Politique de confidentialitÃ©s'
-              : 'Conditions GÃ©nÃ©rales dâ€™Utilisation',
+              ? 'Politique de confidentialités'
+              : 'Conditions Gérales dâ€™Utilisation',
           body: _legalPlaceholder,
         ),
       ),
@@ -165,14 +165,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: 'Modifier mon profil',
                 onTap: _openEdit,
               ),
-              _ProfileMenuButton(label: 'DonnÃ©es', onTap: _openData),
-              _ProfileMenuButton(label: 'ParamÃ¨tres', onTap: _openSettings),
+              _ProfileMenuButton(label: 'Données', onTap: _openData),
+              _ProfileMenuButton(label: 'Paramètres', onTap: _openSettings),
               _ProfileMenuButton(
                 label: 'CGU',
                 onTap: () => _openLegal(isPrivacy: false),
               ),
               _ProfileMenuButton(
-                label: 'Politique de confidentialitÃ©s',
+                label: 'Politique de confidentialités',
                 onTap: () => _openLegal(isPrivacy: true),
               ),
               const SizedBox(height: 32),
@@ -184,7 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   navigator.pop();
                 },
                 icon: const Icon(Icons.logout),
-                label: const Text('Se dÃ©connecter'),
+                label: const Text('Se déconnecter'),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF2C75FF),
                 ),
