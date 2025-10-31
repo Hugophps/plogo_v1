@@ -1,9 +1,5 @@
-/// Application metadata and constants.
+/// Données statiques de l'application.
 class AppMetadata {
-  /// Semantic version of the app.
-  ///
-  /// Convention: v1.[mineur].[correctif]
-  /// - Incrémentez le correctif (+1) à chaque modification livrée.
-  /// - Le numéro mineur est fourni manuellement.
-  static const version = '1.0.1';
+  /// Version affichée dans l'app (à mettre à jour manuellement).
+  static const version = 'v1.0.2';
 }

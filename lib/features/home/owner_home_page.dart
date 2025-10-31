@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../profile/models/profile.dart';
+import '../stations/models/station.dart';
 
 class OwnerHomePage extends StatelessWidget {
   const OwnerHomePage({
     super.key,
     required this.profile,
     required this.onOpenProfile,
+    required this.onCreateStation,
+    required this.onEditStation,
+    this.station,
   });
 
   final Profile profile;
   final VoidCallback onOpenProfile;
+  final VoidCallback onCreateStation;
+  final VoidCallback onEditStation;
+  final Station? station;
 
   @override
   Widget build(BuildContext context) {
@@ -66,83 +73,10 @@ class OwnerHomePage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(0, 0, 0, 0.06),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: const Color(0xFFE7ECFF),
-                      ),
-                      child: const Icon(
-                        Icons.ev_station,
-                        size: 36,
-                        color: Color(0xFF2C75FF),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  profile.stationName ?? 'Ma borne',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () {},
-                                icon: const Icon(
-                                  Icons.settings_outlined,
-                                  color: Color(0xFF2C75FF),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDDE6FF),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Statut borne: disponible',
-                              style: TextStyle(
-                                color: Color(0xFF2C75FF),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              _StationSection(
+                station: station,
+                onCreateStation: onCreateStation,
+                onEditStation: onEditStation,
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -240,6 +174,127 @@ class _HomeSectionCard extends StatelessWidget {
             ),
           ),
           const Icon(Icons.chevron_right, color: Colors.black26),
+        ],
+      ),
+    );
+  }
+}
+
+class _StationSection extends StatelessWidget {
+  const _StationSection({
+    required this.station,
+    required this.onCreateStation,
+    required this.onEditStation,
+  });
+
+  final Station? station;
+  final VoidCallback onCreateStation;
+  final VoidCallback onEditStation;
+
+  @override
+  Widget build(BuildContext context) {
+    if (station == null) {
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: onCreateStation,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF2C75FF),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          child: const Text(
+            'Ajouter ma borne',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.06),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFFE7ECFF),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: station!.photoUrl != null && station!.photoUrl!.isNotEmpty
+                ? Image.network(
+                    station!.photoUrl!,
+                    fit: BoxFit.cover,
+                  )
+                : const Icon(
+                    Icons.ev_station,
+                    size: 36,
+                    color: Color(0xFF2C75FF),
+                  ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        station!.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: onEditStation,
+                      icon: const Icon(
+                        Icons.settings_outlined,
+                        color: Color(0xFF2C75FF),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDE6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Statut borne: disponible',
+                    style: TextStyle(
+                      color: Color(0xFF2C75FF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

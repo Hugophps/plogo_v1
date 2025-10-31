@@ -12,6 +12,9 @@ import 'features/landing/landing_page.dart';
 import 'features/profile/models/profile.dart';
 import 'features/profile/profile_page.dart';
 import 'features/profile/profile_repository.dart';
+import 'features/stations/models/station.dart';
+import 'features/stations/station_form_page.dart';
+import 'features/stations/station_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,8 +67,10 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   final _repo = const ProfileRepository();
+  final _stationRepo = const StationRepository();
   AuthDestination _destination = AuthDestination.landing;
   Profile? _profile;
+  Station? _station;
   bool _loading = true;
   StreamSubscription<AuthState>? _authSubscription;
 
@@ -101,8 +106,17 @@ class _AuthGateState extends State<AuthGate> {
             email: session.user.email,
             isCompleted: false,
           );
+      Station? station;
+      var resolvedProfile = profile;
+      if (profile.isOwner) {
+        station = await _stationRepo.fetchOwnStation();
+        if (station != null) {
+          resolvedProfile = profile.copyWith(stationName: station.name);
+        }
+      }
       setState(() {
-        _profile = profile;
+        _profile = resolvedProfile;
+        _station = station;
         _destination = _resolveDestination(profile);
         _loading = false;
       });
@@ -169,8 +183,17 @@ class _AuthGateState extends State<AuthGate> {
   Future<Profile?> _refreshProfile() async {
     final refreshed = await _repo.fetchCurrentProfile();
     if (refreshed != null) {
+      Station? station;
+      var resolvedProfile = refreshed;
+      if (refreshed.isOwner) {
+        station = await _stationRepo.fetchOwnStation();
+        if (station != null) {
+          resolvedProfile = refreshed.copyWith(stationName: station.name);
+        }
+      }
       setState(() {
-        _profile = refreshed;
+        _profile = resolvedProfile;
+        _station = station;
         _destination = _resolveDestination(refreshed);
       });
     }
@@ -197,6 +220,67 @@ class _AuthGateState extends State<AuthGate> {
       setState(() {
         _profile = null;
         _destination = AuthDestination.landing;
+      });
+    }
+  }
+
+  Future<void> _openStationCreate(BuildContext context) async {
+    final currentProfile = _profile;
+    if (currentProfile == null) return;
+
+    final created = await Navigator.of(context).push<Station?>(
+      MaterialPageRoute(
+        builder: (_) => StationFormPage(
+          profile: currentProfile,
+          onSubmit: (payload, photoUrl) async {
+            final station = await _stationRepo.createStation({
+              ...payload,
+              if (photoUrl != null) 'photo_url': photoUrl,
+            });
+            return station;
+          },
+          title: 'Création de votre borne',
+          submitLabel: 'Valider et créer',
+          initialStation: null,
+        ),
+      ),
+    );
+
+    if (created != null && mounted) {
+      setState(() {
+        _station = created;
+        _profile = _profile?.copyWith(stationName: created.name);
+      });
+    }
+  }
+
+  Future<void> _openStationEdit(BuildContext context) async {
+    final currentProfile = _profile;
+    final currentStation = _station;
+    if (currentProfile == null || currentStation == null) return;
+
+    final updated = await Navigator.of(context).push<Station?>(
+      MaterialPageRoute(
+        builder: (_) => StationFormPage(
+          profile: currentProfile,
+          initialStation: currentStation,
+          title: 'Modifier ma borne',
+          submitLabel: 'Enregistrer les modifications',
+          onSubmit: (payload, photoUrl) async {
+            final station = await _stationRepo.updateStation(currentStation.id, {
+              ...payload,
+              if (photoUrl != null) 'photo_url': photoUrl,
+            });
+            return station;
+          },
+        ),
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _station = updated;
+        _profile = _profile?.copyWith(stationName: updated.name);
       });
     }
   }
@@ -230,6 +314,9 @@ class _AuthGateState extends State<AuthGate> {
         return OwnerHomePage(
           profile: _profile!,
           onOpenProfile: () => _openProfilePage(context),
+          onCreateStation: () => _openStationCreate(context),
+          onEditStation: () => _openStationEdit(context),
+          station: _station,
         );
       case AuthDestination.driverHome:
         return DriverHomePage(

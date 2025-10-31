@@ -78,7 +78,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('v${widget.appVersion}'),
+            Text(widget.appVersion),
             const Spacer(),
             TextButton.icon(
               onPressed: _deleting ? null : _confirmDeletion,
