@@ -145,12 +145,12 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
       final file = result.files.first;
       final bytes = file.bytes;
       if (bytes == null) {
-        throw Exception('Impossible de lire le fichier sÃ©lectionnÃ©.');
+        throw Exception('Impossible de lire le fichier sélectionné.');
       }
 
       final decoded = img.decodeImage(bytes);
       if (decoded == null) {
-        throw Exception('Format dâ€™image non supportÃ©.');
+        throw Exception("Format d'image non supporté.");
       }
 
       final resized = img.copyResize(decoded, width: 100, height: 100);
@@ -185,7 +185,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
       String? avatarUrl = _remoteAvatarUrl;
       if (_avatarBytes != null) {
         final user = supabase.auth.currentUser;
-        if (user == null) throw Exception('Utilisateur non connectÃ©');
+        if (user == null) throw Exception('Utilisateur non connecté');
         final path = 'avatars/${user.id}.jpg';
         await supabase.storage
             .from('avatars')
@@ -251,7 +251,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
               ),
               child: const Center(
                 child: Text(
-                  'CrÃ©ation du compte',
+                  'Création du compte',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -269,7 +269,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        "Bienvenue !\nVous Ãªtes Ã  quelques informations d'avoir votre compte âœ…",
+                        "Bienvenue !\nVous êtes à quelques informations d'avoir votre compte…",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -279,7 +279,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                       const SizedBox(height: 24),
                       _buildAvatarPicker(initials),
                       const SizedBox(height: 24),
-                      _buildSection('Informations gÃ©nÃ©rales', [
+                      _buildSection('Informations générales', [
                         TextFormField(
                           controller: _emailController,
                           readOnly: true,
@@ -290,18 +290,18 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
                           decoration: _fieldDecoration(
-                            'TÃ©lÃ©phone',
+                            'Téléphone',
                             required: true,
                           ),
                           validator: _validateRequired,
                         ),
                       ]),
                       const SizedBox(height: 24),
-                      _buildSection('Ã€ propos de vous', [
+                      _buildSection('À propos de vous', [
                         TextFormField(
                           controller: _fullNameController,
                           decoration: _fieldDecoration(
-                            'PrÃ©nom et nom',
+                            'Prénom et nom',
                             required: true,
                           ),
                           validator: _validateRequired,
@@ -319,7 +319,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                         TextFormField(
                           controller: _streetNumberController,
                           decoration: _fieldDecoration(
-                            'NÂ° de rue',
+                            'N° de rue',
                             required: true,
                           ),
                           validator: _validateRequired,
@@ -352,12 +352,12 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                           maxLines: null,
                           maxLength: 150,
                           decoration: _fieldDecoration(
-                            'Une petite prÃ©sentation de vous',
+                            'Une petite présentation de vous',
                           ).copyWith(counterText: ''),
                         ),
                       ]),
                       const SizedBox(height: 24),
-                      _buildSection('Votre vÃ©hicule Ã©lectrique principal', [
+                      _buildSection('Votre véhicule électrique principal', [
                         TextFormField(
                           controller: _vehicleBrandController,
                           decoration: _fieldDecoration('Marque'),
@@ -365,7 +365,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _vehicleModelController,
-                          decoration: _fieldDecoration('ModÃ¨le'),
+                          decoration: _fieldDecoration('Modèle'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -384,7 +384,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                       ]),
                       const SizedBox(height: 24),
                       const Text(
-                        'Je dÃ©clare que ces informations sont correctes. En mâ€™inscrivant, je confirme avoir pris connaissance des CGU et de la politique de confidentialitÃ© de Plogo.',
+                        "Je déclare que ces informations sont correctes. En m'inscrivant, je confirme avoir pris connaissance des CGU et de la politique de confidentialité de Plogo.",
                         style: TextStyle(fontSize: 12, color: Colors.black54),
                       ),
                       const SizedBox(height: 24),
@@ -403,7 +403,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                                     ),
                                   ),
                                 )
-                              : const Text('Valider et crÃ©er'),
+                              : const Text('Valider et créer'),
                         ),
                       ),
                     ],
@@ -470,7 +470,7 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
               child: OutlinedButton.icon(
                 onPressed: _saving ? null : _pickAvatar,
                 icon: const Icon(Icons.upload_outlined),
-                label: const Text('TÃ©lÃ©charger une photo'),
+                label: const Text('Télécharger une photo'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF2C75FF),
                   side: const BorderSide(color: Color(0xFF2C75FF)),

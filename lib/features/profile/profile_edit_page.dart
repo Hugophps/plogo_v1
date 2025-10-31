@@ -124,12 +124,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       final file = result.files.first;
       final bytes = file.bytes;
       if (bytes == null) {
-        throw Exception('Impossible de lire le fichier sÃ©lectionnÃ©.');
+        throw Exception('Impossible de lire le fichier sélectionné.');
       }
 
       final decoded = img.decodeImage(bytes);
       if (decoded == null) {
-        throw Exception('Format dâ€™image non supportÃ©.');
+        throw Exception("Format d'image non supporté.");
       }
 
       final resized = img.copyResize(decoded, width: 100, height: 100);
@@ -163,7 +163,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       String? avatarUrl = _remoteAvatarUrl;
       if (_avatarBytes != null) {
         final user = supabase.auth.currentUser;
-        if (user == null) throw Exception('Utilisateur non connectÃ©');
+        if (user == null) throw Exception('Utilisateur non connecté');
         final path = 'avatars/${user.id}.jpg';
         await supabase.storage
             .from('avatars')
@@ -225,7 +225,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               children: [
                 _buildAvatarPicker(initials),
                 const SizedBox(height: 24),
-                _buildSection('Informations gÃ©nÃ©rales', [
+                _buildSection('Informations générales', [
                   TextFormField(
                     controller: _emailController,
                     readOnly: true,
@@ -235,16 +235,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    decoration: _fieldDecoration('TÃ©lÃ©phone', required: true),
+                    decoration: _fieldDecoration('Téléphone', required: true),
                     validator: _validateRequired,
                   ),
                 ]),
                 const SizedBox(height: 24),
-                _buildSection('Ã€ propos de vous', [
+                _buildSection('À propos de vous', [
                   TextFormField(
                     controller: _fullNameController,
                     decoration: _fieldDecoration(
-                      'PrÃ©nom et nom',
+                      'Prénom et nom',
                       required: true,
                     ),
                     validator: _validateRequired,
@@ -258,7 +258,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _streetNumberController,
-                    decoration: _fieldDecoration('NÂ° de rue', required: true),
+                    decoration: _fieldDecoration('N° de rue', required: true),
                     validator: _validateRequired,
                   ),
                   const SizedBox(height: 12),
@@ -291,7 +291,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   ),
                 ]),
                 const SizedBox(height: 24),
-                _buildSection('Votre vÃ©hicule Ã©lectrique principal', [
+                _buildSection('Votre véhicule électrique principal', [
                   TextFormField(
                     controller: _vehicleBrandController,
                     decoration: _fieldDecoration('Marque'),
@@ -299,7 +299,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _vehicleModelController,
-                    decoration: _fieldDecoration('ModÃ¨le'),
+                    decoration: _fieldDecoration('Modèle'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
