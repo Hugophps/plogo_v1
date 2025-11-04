@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../profile/models/profile.dart';
+import '../station_members/members_management_page.dart';
+import '../station_members/models/station_member.dart';
+import '../station_members/station_members_repository.dart';
 import '../stations/models/station.dart';
 
-class OwnerHomePage extends StatelessWidget {
+class OwnerHomePage extends StatefulWidget {
   const OwnerHomePage({
     super.key,
     required this.profile,
@@ -20,9 +24,125 @@ class OwnerHomePage extends StatelessWidget {
   final Station? station;
 
   @override
+  State<OwnerHomePage> createState() => _OwnerHomePageState();
+}
+
+class _OwnerHomePageState extends State<OwnerHomePage> {
+  final _membersRepository = const StationMembersRepository();
+  List<StationMember>? _members;
+  bool _loadingMembers = false;
+  String? _membersError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.station != null) {
+      _loadMembers();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant OwnerHomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.station?.id != widget.station?.id) {
+      if (widget.station != null) {
+        _loadMembers();
+      } else {
+        setState(() {
+          _members = null;
+          _membersError = null;
+          _loadingMembers = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMembers() async {
+    final station = widget.station;
+    if (station == null) return;
+    setState(() {
+      _loadingMembers = true;
+      _membersError = null;
+    });
+    try {
+      final members = await _membersRepository.fetchMembers(station.id);
+      if (!mounted) return;
+      setState(() {
+        _members = members;
+        _loadingMembers = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingMembers = false;
+        _membersError = 'Impossible de charger les membres.';
+      });
+    }
+  }
+
+  Future<void> _openMembersManagement() async {
+    final station = widget.station;
+    if (station == null) return;
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => MembersManagementPage(
+          station: station,
+          repository: _membersRepository,
+        ),
+      ),
+    );
+    if (updated == true) {
+      await _loadMembers();
+    }
+  }
+
+  Future<void> _openWhatsAppGroup() async {
+    final link = widget.station?.whatsappGroupUrl;
+    if (link == null || link.isEmpty) {
+      _showSnackBar(
+        'Ajoutez le lien du groupe WhatsApp depuis les paramètres de la borne.',
+      );
+      return;
+    }
+    final uri = Uri.tryParse(link);
+    if (uri == null) {
+      _showSnackBar('Lien WhatsApp invalide.');
+      return;
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showSnackBar('Impossible d’ouvrir WhatsApp.');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  int get _approvedCount =>
+      _members?.where((member) => member.isApproved).length ?? 0;
+
+  int get _pendingCount =>
+      _members?.where((member) => member.isPending).length ?? 0;
+
+  String _initialsFromName(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) return 'P';
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    final first = parts.isNotEmpty ? parts.first : '';
+    final last = parts.length > 1 ? parts.last : '';
+    final buffer = StringBuffer();
+    if (first.isNotEmpty) buffer.write(first[0]);
+    if (last.isNotEmpty) buffer.write(last[0]);
+    return buffer.isEmpty ? 'P' : buffer.toString().toUpperCase();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final profile = widget.profile;
     final initials = _initialsFromName(profile.fullName);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       body: SafeArea(
@@ -41,7 +161,7 @@ class OwnerHomePage extends StatelessWidget {
                     ),
                   ),
                   InkWell(
-                    onTap: onOpenProfile,
+                    onTap: widget.onOpenProfile,
                     borderRadius: BorderRadius.circular(30),
                     child: Container(
                       padding: const EdgeInsets.all(2.5),
@@ -74,27 +194,35 @@ class OwnerHomePage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               _StationSection(
-                station: station,
-                onCreateStation: onCreateStation,
-                onEditStation: onEditStation,
+                station: widget.station,
+                onCreateStation: widget.onCreateStation,
+                onEditStation: widget.onEditStation,
               ),
               const SizedBox(height: 24),
               Expanded(
                 child: ListView(
-                  children: const [
-                    _HomeSectionCard(
+                  children: [
+                    const _HomeSectionCard(
                       title: 'Calendrier',
                       description:
                           'Consultez et gérez les créneaux réservés ou disponibles.',
                       icon: Icons.calendar_today,
                     ),
-                    SizedBox(height: 16),
-                    _HomeSectionCard(
-                      title: 'Membres',
-                      description:
-                          'Retrouvez l’historique des conducteurs et leurs évaluations.',
-                      icon: Icons.people_outline,
-                    ),
+                    const SizedBox(height: 16),
+                    if (widget.station != null)
+                      _MembersOverviewCard(
+                        loading: _loadingMembers,
+                        error: _membersError,
+                        approvedCount: _approvedCount,
+                        pendingCount: _pendingCount,
+                        onRetry: _loadMembers,
+                        onOpenManagement: _openMembersManagement,
+                        onOpenWhatsApp: _openWhatsAppGroup,
+                        hasWhatsAppLink:
+                            (widget.station?.whatsappGroupUrl ?? '').isNotEmpty,
+                      )
+                    else
+                      const _MembersPlaceholderCard(),
                   ],
                 ),
               ),
@@ -103,17 +231,6 @@ class OwnerHomePage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _initialsFromName(String? fullName) {
-    if (fullName == null || fullName.trim().isEmpty) return 'P';
-    final parts = fullName.trim().split(RegExp(r'\s+'));
-    final first = parts.isNotEmpty ? parts.first : '';
-    final last = parts.length > 1 ? parts.last : '';
-    final buffer = StringBuffer();
-    if (first.isNotEmpty) buffer.write(first[0]);
-    if (last.isNotEmpty) buffer.write(last[0]);
-    return buffer.isEmpty ? 'P' : buffer.toString().toUpperCase();
   }
 }
 
@@ -131,26 +248,27 @@ class _HomeSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            blurRadius: 15,
-            offset: Offset(0, 6),
+            color: Color.fromRGBO(0, 0, 0, 0.06),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color.fromRGBO(44, 117, 255, 0.1),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE7ECFF),
+              borderRadius: BorderRadius.circular(16),
             ),
-            padding: const EdgeInsets.all(12),
             child: Icon(icon, color: const Color(0xFF2C75FF)),
           ),
           const SizedBox(width: 16),
@@ -161,19 +279,204 @@ class _HomeSectionCard extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   description,
-                  style: const TextStyle(color: Colors.black54, fontSize: 13),
+                  style: const TextStyle(color: Colors.black54, height: 1.4),
                 ),
               ],
             ),
           ),
           const Icon(Icons.chevron_right, color: Colors.black26),
+        ],
+      ),
+    );
+  }
+}
+
+class _MembersOverviewCard extends StatelessWidget {
+  const _MembersOverviewCard({
+    required this.loading,
+    required this.error,
+    required this.approvedCount,
+    required this.pendingCount,
+    required this.onRetry,
+    required this.onOpenManagement,
+    required this.onOpenWhatsApp,
+    required this.hasWhatsAppLink,
+  });
+
+  final bool loading;
+  final String? error;
+  final int approvedCount;
+  final int pendingCount;
+  final Future<void> Function() onRetry;
+  final VoidCallback onOpenManagement;
+  final VoidCallback onOpenWhatsApp;
+  final bool hasWhatsAppLink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.06),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Membres',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              IconButton(
+                onPressed: loading ? null : onOpenManagement,
+                icon: const Icon(
+                  Icons.group_outlined,
+                  color: Color(0xFF2C75FF),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (error != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(error!, style: const TextStyle(color: Colors.black54)),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => onRetry(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2C75FF),
+                    side: const BorderSide(color: Color(0xFF2C75FF)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('Actualiser'),
+                ),
+              ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _CountChip(
+                      label:
+                          '$approvedCount membre${approvedCount > 1 ? 's' : ''}',
+                    ),
+                    _CountChip(
+                      label:
+                          '$pendingCount demande${pendingCount > 1 ? 's' : ''}',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: hasWhatsAppLink ? onOpenWhatsApp : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFF1DC),
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 16,
+                    ),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.chat),
+                  label: const Text('Ouvrir le groupe WhatsApp'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onOpenManagement,
+                  child: const Text('Gérer les membres'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1DC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFCC8400),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _MembersPlaceholderCard extends StatelessWidget {
+  const _MembersPlaceholderCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE0E3EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text(
+            'Membres',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Publiez votre borne pour inviter des conducteurs et gérer leurs demandes depuis cette section.',
+            style: TextStyle(color: Colors.black54, height: 1.4),
+          ),
         ],
       ),
     );
@@ -239,10 +542,7 @@ class _StationSection extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: station!.photoUrl != null && station!.photoUrl!.isNotEmpty
-                ? Image.network(
-                    station!.photoUrl!,
-                    fit: BoxFit.cover,
-                  )
+                ? Image.network(station!.photoUrl!, fit: BoxFit.cover)
                 : const Icon(
                     Icons.ev_station,
                     size: 36,

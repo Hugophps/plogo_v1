@@ -6,13 +6,13 @@ import 'package:image/image.dart' as img;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/supabase_bootstrap.dart';
+import '../location/google_place_models.dart';
+import '../location/widgets/google_address_field.dart';
 import '../profile/models/profile.dart';
 import 'models/station.dart';
 
-typedef StationSubmission = Future<Station> Function(
-  Map<String, dynamic> payload,
-  String? photoUrl,
-);
+typedef StationSubmission =
+    Future<Station> Function(Map<String, dynamic> payload, String? photoUrl);
 
 class StationFormPage extends StatefulWidget {
   const StationFormPage({
@@ -40,11 +40,6 @@ class _StationFormPageState extends State<StationFormPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _brandController;
   late final TextEditingController _modelController;
-  late final TextEditingController _streetNameController;
-  late final TextEditingController _streetNumberController;
-  late final TextEditingController _postalCodeController;
-  late final TextEditingController _cityController;
-  late final TextEditingController _countryController;
   late final TextEditingController _whatsappController;
   late final TextEditingController _infoController;
 
@@ -52,6 +47,8 @@ class _StationFormPageState extends State<StationFormPage> {
   bool _saving = false;
   Uint8List? _photoBytes;
   String? _remotePhotoUrl;
+  GooglePlaceDetails? _stationAddress;
+  late final GooglePlaceDetails? _profileAddress;
 
   @override
   void initState() {
@@ -62,20 +59,27 @@ class _StationFormPageState extends State<StationFormPage> {
     _nameController = TextEditingController(text: station?.name ?? '');
     _brandController = TextEditingController(text: station?.brand ?? '');
     _modelController = TextEditingController(text: station?.model ?? '');
-    _streetNameController =
-        TextEditingController(text: station?.streetName ?? '');
-    _streetNumberController =
-        TextEditingController(text: station?.streetNumber ?? '');
-    _postalCodeController =
-        TextEditingController(text: station?.postalCode ?? '');
-    _cityController = TextEditingController(text: station?.city ?? '');
-    _countryController =
-        TextEditingController(text: station?.country ?? 'France');
-    _whatsappController =
-        TextEditingController(text: station?.whatsappGroupUrl ?? '');
-    _infoController =
-        TextEditingController(text: station?.additionalInfo ?? '');
+    _whatsappController = TextEditingController(
+      text: station?.whatsappGroupUrl ?? '',
+    );
+    _infoController = TextEditingController(
+      text: station?.additionalInfo ?? '',
+    );
     _remotePhotoUrl = station?.photoUrl;
+    _profileAddress = GooglePlaceDetails.fromStoredData(
+      placeId: widget.profile.addressPlaceId,
+      formattedAddress: widget.profile.addressFormatted,
+      lat: widget.profile.addressLat,
+      lng: widget.profile.addressLng,
+      components: widget.profile.addressComponents,
+    );
+    _stationAddress = GooglePlaceDetails.fromStoredData(
+      placeId: station?.locationPlaceId,
+      formattedAddress: station?.locationFormatted,
+      lat: station?.locationLat,
+      lng: station?.locationLng,
+      components: station?.locationComponents,
+    );
   }
 
   @override
@@ -83,11 +87,6 @@ class _StationFormPageState extends State<StationFormPage> {
     _nameController.dispose();
     _brandController.dispose();
     _modelController.dispose();
-    _streetNameController.dispose();
-    _streetNumberController.dispose();
-    _postalCodeController.dispose();
-    _cityController.dispose();
-    _countryController.dispose();
     _whatsappController.dispose();
     _infoController.dispose();
     super.dispose();
@@ -104,12 +103,12 @@ class _StationFormPageState extends State<StationFormPage> {
       final file = result.files.first;
       final bytes = file.bytes;
       if (bytes == null) {
-        throw Exception('Impossible de lire le fichier sélectionné.');
+        throw Exception('Impossible de lire le fichier selectionne.');
       }
 
       final decoded = img.decodeImage(bytes);
       if (decoded == null) {
-        throw Exception("Format d'image non supporté.");
+        throw Exception("Format d'image non supporte.");
       }
 
       final resized = img.copyResize(decoded, width: 600);
@@ -183,61 +182,66 @@ class _StationFormPageState extends State<StationFormPage> {
 
     setState(() => _saving = true);
     try {
-      final profileStreetName = widget.profile.streetName;
-      final profileStreetNumber = widget.profile.streetNumber;
-      final profilePostalCode = widget.profile.postalCode;
-      final profileCity = widget.profile.city;
-      final profileCountry = widget.profile.country ?? 'France';
-
-      late final String streetName;
-      late final String streetNumber;
-      late final String postalCode;
-      late final String city;
-      late final String country;
-
+      late final GooglePlaceDetails resolvedAddress;
       if (_sameAddress) {
-        final missingFields = <String>[];
-        if ((profileStreetName ?? '').isEmpty) missingFields.add('nom de rue');
-        if ((profileStreetNumber ?? '').isEmpty) missingFields.add('numéro');
-        if ((profilePostalCode ?? '').isEmpty) missingFields.add('code postal');
-        if ((profileCity ?? '').isEmpty) missingFields.add('ville');
-        if (profileCountry.isEmpty) missingFields.add('pays');
-
-        if (missingFields.isNotEmpty) {
+        final profileAddress = _profileAddress;
+        if (profileAddress == null) {
           throw Exception(
-            "Complétez votre adresse dans le profil (champ(s): ${missingFields.join(', ')})",
+            'Ajoutez une adresse Google a votre profil avant de continuer.',
           );
         }
-
-        streetName = profileStreetName!;
-        streetNumber = profileStreetNumber!;
-        postalCode = profilePostalCode!;
-        city = profileCity!;
-        country = profileCountry;
+        resolvedAddress = profileAddress;
       } else {
-        streetName = _streetNameController.text.trim();
-        streetNumber = _streetNumberController.text.trim();
-        postalCode = _postalCodeController.text.trim();
-        city = _cityController.text.trim();
-        country = _countryController.text.trim();
+        final stationAddress = _stationAddress;
+        if (stationAddress == null) {
+          throw Exception(
+            'Selectionnez une adresse pour la borne via Google Maps.',
+          );
+        }
+        resolvedAddress = stationAddress;
+      }
+
+      final parsedAddress = GoogleAddressParser.toProfileFields(
+        resolvedAddress,
+      );
+
+      final requirements = {
+        'street_name': 'nom de rue',
+        'street_number': 'numero',
+        'postal_code': 'code postal',
+        'city': 'ville',
+        'country': 'pays',
+      };
+
+      final missingParts = requirements.entries
+          .where((entry) => ((parsedAddress[entry.key] ?? '').trim().isEmpty))
+          .map((entry) => entry.value)
+          .toList();
+
+      if (missingParts.isNotEmpty) {
+        throw Exception(
+          'Adresse incomplete. Selectionnez une adresse plus precise.',
+        );
       }
 
       String? photoUrl = _remotePhotoUrl;
       if (_photoBytes != null) {
         final user = supabase.auth.currentUser;
-        if (user == null) throw Exception('Utilisateur non connecté');
+        if (user == null) throw Exception('Utilisateur non connecte');
 
         final path =
             'stations/${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-        await supabase.storage.from('stations').uploadBinary(
-          path,
-          _photoBytes!,
-          fileOptions: const FileOptions(
-            upsert: true,
-            contentType: 'image/jpeg',
-          ),
-        );
+        await supabase.storage
+            .from('stations')
+            .uploadBinary(
+              path,
+              _photoBytes!,
+              fileOptions: const FileOptions(
+                upsert: true,
+                contentType: 'image/jpeg',
+              ),
+            );
         photoUrl = supabase.storage.from('stations').getPublicUrl(path);
       }
 
@@ -248,13 +252,20 @@ class _StationFormPageState extends State<StationFormPage> {
         'brand': _brandController.text.trim(),
         'model': _modelController.text.trim(),
         'use_profile_address': _sameAddress,
-        'street_name': streetName,
-        'street_number': streetNumber,
-        'postal_code': postalCode,
-        'city': city,
-        'country': country,
+        'street_name': parsedAddress['street_name'],
+        'street_number': parsedAddress['street_number'],
+        'postal_code': parsedAddress['postal_code'],
+        'city': parsedAddress['city'],
+        'country': parsedAddress['country'],
         'additional_info': info.isEmpty ? null : info,
         'whatsapp_group_url': whatsappLink.isEmpty ? null : whatsappLink,
+        'location_place_id': resolvedAddress.placeId,
+        'location_lat': resolvedAddress.lat,
+        'location_lng': resolvedAddress.lng,
+        'location_formatted': resolvedAddress.formattedAddress,
+        'location_components': resolvedAddress.components
+            .map((component) => component.toJson())
+            .toList(),
       };
 
       final station = await widget.onSubmit(payload, photoUrl);
@@ -263,9 +274,9 @@ class _StationFormPageState extends State<StationFormPage> {
       Navigator.of(context).pop(station);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -273,6 +284,7 @@ class _StationFormPageState extends State<StationFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final profileAddress = _profileAddress;
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       appBar: AppBar(
@@ -292,23 +304,21 @@ class _StationFormPageState extends State<StationFormPage> {
             children: [
               const Text(
                 'Informations de la borne',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _nameController,
-                decoration: _fieldDecoration('Donnez un nom à votre borne',
-                    required: true),
+                decoration: _fieldDecoration(
+                  'Donnez un nom Ã  votre borne',
+                  required: true,
+                ),
                 validator: _validateRequired,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _brandController,
-                decoration:
-                    _fieldDecoration('Marque', required: true),
+                decoration: _fieldDecoration('Marque', required: true),
                 validator: _validateRequired,
               ),
               const SizedBox(height: 12),
@@ -320,10 +330,7 @@ class _StationFormPageState extends State<StationFormPage> {
               const SizedBox(height: 24),
               const Text(
                 'Informations de la borne',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               SwitchListTile.adaptive(
@@ -331,54 +338,81 @@ class _StationFormPageState extends State<StationFormPage> {
                 activeTrackColor: const Color(0xFF2C75FF),
                 inactiveThumbColor: Colors.white,
                 inactiveTrackColor: Colors.black12,
-                title: const Text("L'adresse de la borne est la même que la mienne"),
+                title: const Text(
+                  "L'adresse de la borne est la meme que la mienne",
+                ),
                 value: _sameAddress,
                 onChanged: (value) {
                   setState(() {
                     _sameAddress = value;
+                    if (value) {
+                      _stationAddress = null;
+                    }
                   });
                 },
               ),
-              if (!_sameAddress) ...[
+              if (_sameAddress)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: profileAddress != null
+                      ? Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE0E3EB)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Adresse utilisee',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2C75FF),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(profileAddress.formattedAddress),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFE2E2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFFFB3B3)),
+                          ),
+                          child: const Text(
+                            'Ajoutez une adresse Google a votre profil pour utiliser cette option.',
+                            style: TextStyle(
+                              color: Color(0xFFB42321),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                )
+              else ...[
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _streetNameController,
-                  decoration: _fieldDecoration('Nom de rue', required: true),
-                  validator: _validateRequired,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _streetNumberController,
-                  decoration: _fieldDecoration('N° de rue', required: true),
-                  validator: _validateRequired,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _postalCodeController,
-                  decoration: _fieldDecoration('Code postal', required: true),
-                  validator: _validateRequired,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _cityController,
-                  decoration: _fieldDecoration('Ville', required: true),
-                  validator: _validateRequired,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _countryController,
-                  decoration: _fieldDecoration('Pays', required: true),
-                  validator: _validateRequired,
+                GoogleAddressField(
+                  label: 'Adresse de la borne *',
+                  helperText:
+                      "Selectionnez l'adresse precise de votre borne via Google Maps.",
+                  initialValue: _stationAddress,
+                  onChanged: (value) {
+                    setState(() {
+                      _stationAddress = value;
+                    });
+                  },
                 ),
               ],
               const SizedBox(height: 24),
               const Text(
                 'Photographie de la borne',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               GestureDetector(
@@ -406,9 +440,7 @@ class _StationFormPageState extends State<StationFormPage> {
                       const Expanded(
                         child: Text(
                           'Ajouter une photo de la borne',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                       const Icon(
@@ -422,10 +454,7 @@ class _StationFormPageState extends State<StationFormPage> {
               const SizedBox(height: 24),
               const Text(
                 'Coordination via WhatsApp',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -436,17 +465,15 @@ class _StationFormPageState extends State<StationFormPage> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Information / instructions complémentaires',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                'Information / instructions complÃ©mentaires',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _infoController,
-                decoration:
-                    _fieldDecoration('Une petite description de la borne'),
+                decoration: _fieldDecoration(
+                  'Une petite description de la borne',
+                ),
                 maxLines: 4,
               ),
               const SizedBox(height: 32),

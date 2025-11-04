@@ -14,6 +14,11 @@ class Station {
     this.photoUrl,
     this.additionalInfo,
     this.whatsappGroupUrl,
+    this.locationPlaceId,
+    this.locationLat,
+    this.locationLng,
+    this.locationFormatted,
+    this.locationComponents,
   });
 
   final String id;
@@ -30,6 +35,11 @@ class Station {
   final String? photoUrl;
   final String? additionalInfo;
   final String? whatsappGroupUrl;
+  final String? locationPlaceId;
+  final double? locationLat;
+  final double? locationLng;
+  final String? locationFormatted;
+  final List<dynamic>? locationComponents;
 
   Station copyWith({
     String? name,
@@ -44,6 +54,11 @@ class Station {
     String? photoUrl,
     String? additionalInfo,
     String? whatsappGroupUrl,
+    String? locationPlaceId,
+    double? locationLat,
+    double? locationLng,
+    String? locationFormatted,
+    List<dynamic>? locationComponents,
   }) {
     return Station(
       id: id,
@@ -60,6 +75,11 @@ class Station {
       photoUrl: photoUrl ?? this.photoUrl,
       additionalInfo: additionalInfo ?? this.additionalInfo,
       whatsappGroupUrl: whatsappGroupUrl ?? this.whatsappGroupUrl,
+      locationPlaceId: locationPlaceId ?? this.locationPlaceId,
+      locationLat: locationLat ?? this.locationLat,
+      locationLng: locationLng ?? this.locationLng,
+      locationFormatted: locationFormatted ?? this.locationFormatted,
+      locationComponents: locationComponents ?? this.locationComponents,
     );
   }
 
@@ -79,6 +99,11 @@ class Station {
       photoUrl: map['photo_url'] as String?,
       additionalInfo: map['additional_info'] as String?,
       whatsappGroupUrl: map['whatsapp_group_url'] as String?,
+      locationPlaceId: map['location_place_id'] as String?,
+      locationLat: (map['location_lat'] as num?)?.toDouble(),
+      locationLng: (map['location_lng'] as num?)?.toDouble(),
+      locationFormatted: map['location_formatted'] as String?,
+      locationComponents: map['location_components'] as List<dynamic>?,
     );
   }
 }

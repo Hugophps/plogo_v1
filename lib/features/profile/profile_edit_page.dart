@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +6,8 @@ import 'package:image/image.dart' as img;
 
 import '../../core/supabase_bootstrap.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../location/google_place_models.dart';
+import '../location/widgets/google_address_field.dart';
 import '../profile/models/profile.dart';
 import '../profile/profile_repository.dart';
 
@@ -25,11 +27,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
   late final TextEditingController _fullNameController;
-  late final TextEditingController _streetNameController;
-  late final TextEditingController _streetNumberController;
-  late final TextEditingController _postalCodeController;
-  late final TextEditingController _cityController;
-  late final TextEditingController _countryController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _vehicleBrandController;
   late final TextEditingController _vehicleModelController;
@@ -39,6 +36,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   Uint8List? _avatarBytes;
   String? _remoteAvatarUrl;
   bool _saving = false;
+  GooglePlaceDetails? _selectedAddress;
 
   @override
   void initState() {
@@ -47,11 +45,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _emailController = TextEditingController(text: p.email ?? '');
     _phoneController = TextEditingController(text: p.phoneNumber ?? '');
     _fullNameController = TextEditingController(text: p.fullName ?? '');
-    _streetNameController = TextEditingController(text: p.streetName ?? '');
-    _streetNumberController = TextEditingController(text: p.streetNumber ?? '');
-    _postalCodeController = TextEditingController(text: p.postalCode ?? '');
-    _cityController = TextEditingController(text: p.city ?? '');
-    _countryController = TextEditingController(text: p.country ?? 'France');
     _descriptionController = TextEditingController(text: p.description ?? '');
     _vehicleBrandController = TextEditingController(text: p.vehicleBrand ?? '');
     _vehicleModelController = TextEditingController(text: p.vehicleModel ?? '');
@@ -60,6 +53,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       text: p.vehiclePlugType ?? '',
     );
     _remoteAvatarUrl = p.avatarUrl;
+    _selectedAddress = GooglePlaceDetails.fromStoredData(
+      placeId: p.addressPlaceId,
+      formattedAddress: p.addressFormatted,
+      lat: p.addressLat,
+      lng: p.addressLng,
+      components: p.addressComponents,
+    );
     _fullNameController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -70,11 +70,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _emailController.dispose();
     _phoneController.dispose();
     _fullNameController.dispose();
-    _streetNameController.dispose();
-    _streetNumberController.dispose();
-    _postalCodeController.dispose();
-    _cityController.dispose();
-    _countryController.dispose();
     _descriptionController.dispose();
     _vehicleBrandController.dispose();
     _vehicleModelController.dispose();
@@ -111,6 +106,24 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         borderSide: const BorderSide(color: Color(0xFF2C75FF), width: 1.5),
       ),
     );
+  }
+
+  Map<String, dynamic> _buildAddressPayload(GooglePlaceDetails details) {
+    final parsed = GoogleAddressParser.toProfileFields(details);
+    return {
+      'street_name': parsed['street_name'],
+      'street_number': parsed['street_number'],
+      'postal_code': parsed['postal_code'],
+      'city': parsed['city'],
+      'country': parsed['country'],
+      'address_place_id': details.placeId,
+      'address_lat': details.lat,
+      'address_lng': details.lng,
+      'address_formatted': details.formattedAddress,
+      'address_components': details.components
+          .map((component) => component.toJson())
+          .toList(),
+    };
   }
 
   Future<void> _pickAvatar() async {
@@ -158,6 +171,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Sélectionnez une adresse via la recherche Google Maps.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       String? avatarUrl = _remoteAvatarUrl;
@@ -179,15 +202,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       }
 
       final description = _descriptionController.text.trim();
+      final addressData = _buildAddressPayload(_selectedAddress!);
 
       final updated = await _repo.upsertProfile({
         'full_name': _fullNameController.text.trim(),
         'phone_number': _phoneController.text.trim(),
-        'street_name': _streetNameController.text.trim(),
-        'street_number': _streetNumberController.text.trim(),
-        'postal_code': _postalCodeController.text.trim(),
-        'city': _cityController.text.trim(),
-        'country': _countryController.text.trim(),
         'description': description.isEmpty ? null : description,
         'vehicle_brand': _vehicleBrandController.text.trim(),
         'vehicle_model': _vehicleModelController.text.trim(),
@@ -195,6 +214,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         'vehicle_plug_type': _vehiclePlugController.text.trim(),
         'avatar_url': avatarUrl,
         'profile_completed': true,
+        ...addressData,
       });
 
       if (!mounted) return;
@@ -250,34 +270,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     validator: _validateRequired,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _streetNameController,
-                    decoration: _fieldDecoration('Nom de rue', required: true),
-                    validator: _validateRequired,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _streetNumberController,
-                    decoration: _fieldDecoration('N° de rue', required: true),
-                    validator: _validateRequired,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _postalCodeController,
-                    decoration: _fieldDecoration('Code postal', required: true),
-                    validator: _validateRequired,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _cityController,
-                    decoration: _fieldDecoration('Ville', required: true),
-                    validator: _validateRequired,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _countryController,
-                    decoration: _fieldDecoration('Pays', required: true),
-                    validator: _validateRequired,
+                  GoogleAddressField(
+                    label: 'Adresse du domicile *',
+                    helperText:
+                        'Recherchez et sélectionnez votre adresse via Google Maps.',
+                    initialValue: _selectedAddress,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedAddress = value;
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

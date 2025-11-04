@@ -19,6 +19,11 @@ class Profile {
     this.vehiclePlate,
     this.vehiclePlugType,
     required this.isCompleted,
+    this.addressPlaceId,
+    this.addressLat,
+    this.addressLng,
+    this.addressFormatted,
+    this.addressComponents,
   });
 
   final String id;
@@ -40,6 +45,11 @@ class Profile {
   final String? vehiclePlate;
   final String? vehiclePlugType;
   final bool isCompleted;
+  final String? addressPlaceId;
+  final double? addressLat;
+  final double? addressLng;
+  final String? addressFormatted;
+  final List<dynamic>? addressComponents;
 
   bool get hasRole => role == 'owner' || role == 'driver';
   bool get isOwner => role == 'owner';
@@ -69,6 +79,11 @@ class Profile {
     String? vehiclePlate,
     String? vehiclePlugType,
     bool? isCompleted,
+    String? addressPlaceId,
+    double? addressLat,
+    double? addressLng,
+    String? addressFormatted,
+    List<dynamic>? addressComponents,
   }) {
     return Profile(
       id: id,
@@ -90,6 +105,11 @@ class Profile {
       vehiclePlate: vehiclePlate ?? this.vehiclePlate,
       vehiclePlugType: vehiclePlugType ?? this.vehiclePlugType,
       isCompleted: isCompleted ?? this.isCompleted,
+      addressPlaceId: addressPlaceId ?? this.addressPlaceId,
+      addressLat: addressLat ?? this.addressLat,
+      addressLng: addressLng ?? this.addressLng,
+      addressFormatted: addressFormatted ?? this.addressFormatted,
+      addressComponents: addressComponents ?? this.addressComponents,
     );
   }
 
@@ -114,6 +134,11 @@ class Profile {
       vehiclePlate: map['vehicle_plate'] as String?,
       vehiclePlugType: map['vehicle_plug_type'] as String?,
       isCompleted: (map['profile_completed'] as bool?) ?? false,
+      addressPlaceId: map['address_place_id'] as String?,
+      addressLat: (map['address_lat'] as num?)?.toDouble(),
+      addressLng: (map['address_lng'] as num?)?.toDouble(),
+      addressFormatted: map['address_formatted'] as String?,
+      addressComponents: map['address_components'] as List<dynamic>?,
     );
   }
 }
