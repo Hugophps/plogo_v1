@@ -13,6 +13,7 @@ class Station {
     required this.country,
     this.photoUrl,
     this.additionalInfo,
+    this.whatsappGroupUrl,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class Station {
   final String country;
   final String? photoUrl;
   final String? additionalInfo;
+  final String? whatsappGroupUrl;
 
   Station copyWith({
     String? name,
@@ -41,6 +43,7 @@ class Station {
     String? country,
     String? photoUrl,
     String? additionalInfo,
+    String? whatsappGroupUrl,
   }) {
     return Station(
       id: id,
@@ -56,6 +59,7 @@ class Station {
       country: country ?? this.country,
       photoUrl: photoUrl ?? this.photoUrl,
       additionalInfo: additionalInfo ?? this.additionalInfo,
+      whatsappGroupUrl: whatsappGroupUrl ?? this.whatsappGroupUrl,
     );
   }
 
@@ -74,6 +78,7 @@ class Station {
       country: map['country'] as String,
       photoUrl: map['photo_url'] as String?,
       additionalInfo: map['additional_info'] as String?,
+      whatsappGroupUrl: map['whatsapp_group_url'] as String?,
     );
   }
 }

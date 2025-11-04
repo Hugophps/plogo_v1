@@ -45,6 +45,7 @@ class _StationFormPageState extends State<StationFormPage> {
   late final TextEditingController _postalCodeController;
   late final TextEditingController _cityController;
   late final TextEditingController _countryController;
+  late final TextEditingController _whatsappController;
   late final TextEditingController _infoController;
 
   bool _sameAddress = true;
@@ -70,6 +71,8 @@ class _StationFormPageState extends State<StationFormPage> {
     _cityController = TextEditingController(text: station?.city ?? '');
     _countryController =
         TextEditingController(text: station?.country ?? 'France');
+    _whatsappController =
+        TextEditingController(text: station?.whatsappGroupUrl ?? '');
     _infoController =
         TextEditingController(text: station?.additionalInfo ?? '');
     _remotePhotoUrl = station?.photoUrl;
@@ -85,6 +88,7 @@ class _StationFormPageState extends State<StationFormPage> {
     _postalCodeController.dispose();
     _cityController.dispose();
     _countryController.dispose();
+    _whatsappController.dispose();
     _infoController.dispose();
     super.dispose();
   }
@@ -162,6 +166,17 @@ class _StationFormPageState extends State<StationFormPage> {
     return null;
   }
 
+  String? _validateOptionalUrl(String? value) {
+    final link = value?.trim() ?? '';
+    if (link.isEmpty) return null;
+
+    final parsed = Uri.tryParse(link);
+    if (parsed == null || !parsed.hasScheme || !parsed.hasAuthority) {
+      return 'Lien WhatsApp invalide';
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
@@ -227,6 +242,7 @@ class _StationFormPageState extends State<StationFormPage> {
       }
 
       final info = _infoController.text.trim();
+      final whatsappLink = _whatsappController.text.trim();
       final payload = {
         'name': _nameController.text.trim(),
         'brand': _brandController.text.trim(),
@@ -238,6 +254,7 @@ class _StationFormPageState extends State<StationFormPage> {
         'city': city,
         'country': country,
         'additional_info': info.isEmpty ? null : info,
+        'whatsapp_group_url': whatsappLink.isEmpty ? null : whatsappLink,
       };
 
       final station = await widget.onSubmit(payload, photoUrl);
@@ -401,6 +418,21 @@ class _StationFormPageState extends State<StationFormPage> {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Coordination via WhatsApp',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _whatsappController,
+                decoration: _fieldDecoration('Lien du groupe WhatsApp'),
+                validator: _validateOptionalUrl,
+                keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 24),
               const Text(
