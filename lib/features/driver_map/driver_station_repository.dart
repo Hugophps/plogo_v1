@@ -137,4 +137,16 @@ class DriverStationRepository {
     if (response == null) return null;
     return DriverStationMembership.fromMap(response);
   }
+
+  Future<List<DriverStationView>> fetchApprovedStations() async {
+    final stations = await fetchStationsWithMemberships();
+    final approved = stations
+        .where((view) => view.status == DriverStationAccessStatus.approved)
+        .toList();
+    approved.sort(
+      (a, b) =>
+          a.station.name.toLowerCase().compareTo(b.station.name.toLowerCase()),
+    );
+    return approved;
+  }
 }

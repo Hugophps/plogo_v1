@@ -8,11 +8,13 @@ class DriverHomePage extends StatelessWidget {
     required this.profile,
     required this.onOpenProfile,
     required this.onOpenMap,
+    required this.onOpenStationSelection,
   });
 
   final Profile profile;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenMap;
+  final VoidCallback onOpenStationSelection;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +108,7 @@ class DriverHomePage extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () {},
+                        onPressed: onOpenStationSelection,
                         icon: const Icon(Icons.flash_on_outlined),
                         label: const Text('Reserver une session de charge'),
                         style: OutlinedButton.styleFrom(

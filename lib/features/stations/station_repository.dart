@@ -30,17 +30,17 @@ class StationRepository {
 
     final response = await _client
         .from('stations')
-        .insert({
-          'owner_id': user.id,
-          ...data,
-        })
+        .insert({'owner_id': user.id, ...data})
         .select()
         .single();
 
     return Station.fromMap(response);
   }
 
-  Future<Station> updateStation(String stationId, Map<String, dynamic> data) async {
+  Future<Station> updateStation(
+    String stationId,
+    Map<String, dynamic> data,
+  ) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw Exception('Aucun utilisateur connecté');

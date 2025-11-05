@@ -7,6 +7,7 @@ import 'core/supabase_bootstrap.dart';
 import 'features/account/account_completion_page.dart';
 import 'features/account/role_selection_page.dart';
 import 'features/driver_map/driver_map_page.dart';
+import 'features/driver_map/driver_station_selection_page.dart';
 import 'features/home/driver_home_page.dart';
 import 'features/home/owner_home_page.dart';
 import 'features/landing/landing_page.dart';
@@ -210,6 +211,19 @@ class _AuthGateState extends State<AuthGate> {
     await _refreshProfile();
   }
 
+  Future<void> _openDriverStationSelection(BuildContext context) async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => const DriverStationSelectionPage(),
+      ),
+    );
+    if (result == 'open_map') {
+      await _openDriverMap(context);
+    } else {
+      await _refreshProfile();
+    }
+  }
+
   Future<void> _openProfilePage(BuildContext context) async {
     final current = _profile;
     if (current == null) return;
@@ -249,8 +263,8 @@ class _AuthGateState extends State<AuthGate> {
             });
             return station;
           },
-          title: 'Création de votre borne',
-          submitLabel: 'Valider et créer',
+          title: 'CrÃƒÂ©ation de votre borne',
+          submitLabel: 'Valider et crÃƒÂ©er',
           initialStation: null,
         ),
       ),
@@ -333,6 +347,7 @@ class _AuthGateState extends State<AuthGate> {
           profile: _profile!,
           onOpenProfile: () => _openProfilePage(context),
           onOpenMap: () => _openDriverMap(context),
+          onOpenStationSelection: () => _openDriverStationSelection(context),
         );
     }
   }
