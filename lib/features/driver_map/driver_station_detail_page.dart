@@ -372,7 +372,7 @@ class _StationSummaryCard extends StatelessWidget {
                     ),
                     Text(
                       station.brand.isNotEmpty
-                          ? '${station.brand} â€¢ ${station.model}'
+                          ? '${station.brand} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${station.model}'
                           : station.model,
                       style: const TextStyle(color: Colors.black54),
                     ),
@@ -384,6 +384,8 @@ class _StationSummaryCard extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             address,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
               color: Colors.black87,
@@ -431,10 +433,13 @@ class _StationSummaryCard extends StatelessWidget {
     final parts = <String>[
       station.streetNumber,
       station.streetName,
-      '${station.postalCode} ${station.city}',
+      station.postalCode,
+      station.city,
       station.country,
     ];
-    return parts.where((part) => part.trim().isNotEmpty).join('\n');
+    parts.removeWhere((part) => part.trim().isEmpty);
+    if (parts.isEmpty) return 'Adresse non renseignÃƒÆ’Ã‚Â©e';
+    return parts.where((part) => part.trim().isNotEmpty).join(' ');
   }
 }
 
