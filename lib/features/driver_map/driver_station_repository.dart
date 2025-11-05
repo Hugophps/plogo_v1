@@ -39,7 +39,9 @@ class DriverStationRepository {
         owner:profiles!stations_owner_id_fkey (
           id,
           full_name,
-          avatar_url
+          avatar_url,
+          address_lat,
+          address_lng
         )
       '''),
       _client
@@ -69,6 +71,8 @@ class DriverStationRepository {
         id: ownerMap?['id'] as String? ?? station.ownerId,
         displayName: (ownerMap?['full_name'] as String?) ?? 'Proprietaire',
         avatarUrl: ownerMap?['avatar_url'] as String?,
+        addressLat: (ownerMap?['address_lat'] as num?)?.toDouble(),
+        addressLng: (ownerMap?['address_lng'] as num?)?.toDouble(),
       );
 
       views.add(

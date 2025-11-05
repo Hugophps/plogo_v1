@@ -7,11 +7,15 @@ class DriverStationOwnerSummary {
     required this.id,
     required this.displayName,
     this.avatarUrl,
+    this.addressLat,
+    this.addressLng,
   });
 
   final String id;
   final String displayName;
   final String? avatarUrl;
+  final double? addressLat;
+  final double? addressLng;
 }
 
 class DriverStationMembership {
@@ -83,9 +87,12 @@ class DriverStationView {
   DriverStationAccessStatus get status =>
       membership?.status ?? DriverStationAccessStatus.none;
 
-  DriverStationView copyWith({DriverStationMembership? membership}) {
+  DriverStationView copyWith({
+    Station? station,
+    DriverStationMembership? membership,
+  }) {
     return DriverStationView(
-      station: station,
+      station: station ?? this.station,
       owner: owner,
       membership: membership,
     );

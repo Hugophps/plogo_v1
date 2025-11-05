@@ -24,6 +24,16 @@ class DriverMapPage extends StatefulWidget {
 
 class _DriverMapPageState extends State<DriverMapPage> {
   static const LatLng _fallbackCenter = LatLng(50.8503, 4.3517); // Bruxelles
+  static const String _mapStyle = '''
+[
+  {"featureType": "all", "elementType": "labels", "stylers": [{"visibility": "off"}]},
+  {"featureType": "poi", "stylers": [{"visibility": "off"}]},
+  {"featureType": "transit", "stylers": [{"visibility": "off"}]},
+  {"featureType": "administrative", "stylers": [{"visibility": "off"}]},
+  {"featureType": "road", "elementType": "labels", "stylers": [{"visibility": "off"}]},
+  {"featureType": "water", "elementType": "labels", "stylers": [{"visibility": "off"}]}
+]
+''';
 
   final _repository = const DriverStationRepository();
   final _placeService = const GooglePlaceService();
@@ -35,6 +45,7 @@ class _DriverMapPageState extends State<DriverMapPage> {
   String? _loadError;
   bool _serviceUnavailable = false;
   bool _locatingUser = false;
+  bool _shouldFitCamera = false;
 
   List<DriverStationView> _stations = const [];
 
@@ -68,14 +79,11 @@ class _DriverMapPageState extends State<DriverMapPage> {
       final stations = await _repository.fetchStationsWithMemberships();
       if (!mounted) return;
       setState(() {
-        _stations = stations
-            .where(
-              (view) =>
-                  view.station.locationLat != null &&
-                  view.station.locationLng != null,
-            )
-            .toList();
+        _stations = stations;
       });
+      await _hydrateMissingPositions();
+      _shouldFitCamera = true;
+      await _fitToStations();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -88,17 +96,55 @@ class _DriverMapPageState extends State<DriverMapPage> {
     }
   }
 
+  Future<void> _hydrateMissingPositions() async {
+    final List<DriverStationView> updated = List.of(_stations);
+    var changed = false;
+    for (var i = 0; i < updated.length; i++) {
+      final view = updated[i];
+      if (_stationPosition(view) != null) continue;
+      final placeId = view.station.locationPlaceId;
+      if (placeId == null || placeId.isEmpty) continue;
+      try {
+        final details = await _placeService.fetchDetails(placeId);
+        final station = view.station.copyWith(
+          locationLat: details.lat,
+          locationLng: details.lng,
+        );
+        updated[i] = view.copyWith(station: station);
+        changed = true;
+      } catch (_) {
+        // Ignore and keep station without coordinates.
+      }
+    }
+    if (changed && mounted) {
+      setState(() {
+        _stations = updated;
+      });
+    }
+  }
+
+  LatLng? _stationPosition(DriverStationView view) {
+    final station = view.station;
+    final lat =
+        station.locationLat ??
+        (station.useProfileAddress ? view.owner.addressLat : null);
+    final lng =
+        station.locationLng ??
+        (station.useProfileAddress ? view.owner.addressLng : null);
+    if (lat == null || lng == null) return null;
+    return LatLng(lat, lng);
+  }
+
   Set<Marker> get _markers {
     final markers = <Marker>{};
     for (final view in _stations) {
-      final lat = view.station.locationLat;
-      final lng = view.station.locationLng;
-      if (lat == null || lng == null) continue;
+      final position = _stationPosition(view);
+      if (position == null) continue;
       final markerId = MarkerId(view.station.id);
       markers.add(
         Marker(
           markerId: markerId,
-          position: LatLng(lat, lng),
+          position: position,
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueAzure,
           ),
@@ -107,6 +153,52 @@ class _DriverMapPageState extends State<DriverMapPage> {
       );
     }
     return markers;
+  }
+
+  Future<void> _fitToStations() async {
+    final controller = _mapController;
+    if (controller == null) {
+      _shouldFitCamera = true;
+      return;
+    }
+
+    final positions = _stations
+        .map(_stationPosition)
+        .whereType<LatLng>()
+        .toList();
+    if (positions.isEmpty) {
+      _shouldFitCamera = false;
+      return;
+    }
+
+    if (positions.length == 1) {
+      _shouldFitCamera = false;
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: positions.first, zoom: 14),
+        ),
+      );
+      return;
+    }
+
+    double minLat = positions.first.latitude;
+    double maxLat = positions.first.latitude;
+    double minLng = positions.first.longitude;
+    double maxLng = positions.first.longitude;
+
+    for (final position in positions.skip(1)) {
+      if (position.latitude < minLat) minLat = position.latitude;
+      if (position.latitude > maxLat) maxLat = position.latitude;
+      if (position.longitude < minLng) minLng = position.longitude;
+      if (position.longitude > maxLng) maxLng = position.longitude;
+    }
+
+    final bounds = LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+    _shouldFitCamera = false;
+    await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
   }
 
   Future<List<GooglePlacePrediction>> _fetchSuggestions(String pattern) async {
@@ -144,7 +236,7 @@ class _DriverMapPageState extends State<DriverMapPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Adresse introuvable. RÃƒÆ’Ã‚Â©essayez plus tard.'),
+          content: Text('Adresse introuvable. Reessayez plus tard.'),
         ),
       );
     }
@@ -163,7 +255,7 @@ class _DriverMapPageState extends State<DriverMapPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'La gÃƒÆ’Ã‚Â©olocalisation est nÃƒÆ’Ã‚Â©cessaire pour centrer la carte.',
+              'La geolocalisation est necessaire pour centrer la carte.',
             ),
           ),
         );
@@ -175,9 +267,7 @@ class _DriverMapPageState extends State<DriverMapPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Impossible de rÃƒÆ’Ã‚Â©cupÃƒÆ’Ã‚Â©rer votre position: $error',
-          ),
+          content: Text('Impossible de recuperer votre position: $error'),
         ),
       );
     } finally {
@@ -234,21 +324,53 @@ class _DriverMapPageState extends State<DriverMapPage> {
           Positioned.fill(
             child: GoogleMap(
               initialCameraPosition: _initialCamera,
+              mapType: MapType.normal,
+              compassEnabled: false,
+              mapToolbarEnabled: false,
               myLocationButtonEnabled: false,
               myLocationEnabled: false,
+              trafficEnabled: false,
+              buildingsEnabled: false,
+              indoorViewEnabled: false,
+              zoomControlsEnabled: false,
+              zoomGesturesEnabled: true,
+              scrollGesturesEnabled: true,
+              rotateGesturesEnabled: false,
+              tiltGesturesEnabled: false,
               markers: _markers,
-              onMapCreated: (controller) => _mapController = controller,
+              onTap: (_) {},
+              onLongPress: (_) {},
+              onMapCreated: (controller) {
+                _mapController = controller;
+                controller.setMapStyle(_mapStyle);
+                if (_shouldFitCamera) {
+                  _fitToStations();
+                }
+              },
             ),
           ),
           Positioned(
-            top: 20,
+            top: 16,
+            left: 16,
+            child: SafeArea(
+              child: FloatingActionButton.small(
+                heroTag: 'map_back',
+                onPressed: () => Navigator.of(context).pop(),
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF2C75FF),
+                child: const Icon(Icons.arrow_back),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 86,
             left: 16,
             right: 16,
             child: SafeArea(child: _buildSearchField()),
           ),
           Positioned(
             bottom: 24,
-            right: 16,
+            left: 16,
             child: SafeArea(
               child: FloatingActionButton(
                 onPressed: _locatingUser ? null : _centerOnUser,
@@ -388,7 +510,7 @@ class _ErrorBanner extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(onPressed: onRetry, child: const Text('RÃƒÆ’Ã‚Â©essayer')),
+          TextButton(onPressed: onRetry, child: const Text('Reessayer')),
         ],
       ),
     );
