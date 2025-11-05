@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/supabase_bootstrap.dart';
 import 'features/account/account_completion_page.dart';
 import 'features/account/role_selection_page.dart';
+import 'features/driver_map/driver_map_page.dart';
 import 'features/home/driver_home_page.dart';
 import 'features/home/owner_home_page.dart';
 import 'features/landing/landing_page.dart';
@@ -200,6 +201,15 @@ class _AuthGateState extends State<AuthGate> {
     return refreshed;
   }
 
+  Future<void> _openDriverMap(BuildContext context) async {
+    final profile = _profile;
+    if (profile == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => DriverMapPage(profile: profile)),
+    );
+    await _refreshProfile();
+  }
+
   Future<void> _openProfilePage(BuildContext context) async {
     final current = _profile;
     if (current == null) return;
@@ -267,10 +277,10 @@ class _AuthGateState extends State<AuthGate> {
           title: 'Modifier ma borne',
           submitLabel: 'Enregistrer les modifications',
           onSubmit: (payload, photoUrl) async {
-            final station = await _stationRepo.updateStation(currentStation.id, {
-              ...payload,
-              if (photoUrl != null) 'photo_url': photoUrl,
-            });
+            final station = await _stationRepo.updateStation(
+              currentStation.id,
+              {...payload, if (photoUrl != null) 'photo_url': photoUrl},
+            );
             return station;
           },
         ),
@@ -322,6 +332,7 @@ class _AuthGateState extends State<AuthGate> {
         return DriverHomePage(
           profile: _profile!,
           onOpenProfile: () => _openProfilePage(context),
+          onOpenMap: () => _openDriverMap(context),
         );
     }
   }

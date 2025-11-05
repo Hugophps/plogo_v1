@@ -9,4 +9,9 @@ class Env {
     'SUPABASE_REDIRECT_URL',
     defaultValue: '',
   );
+
+  static const googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
 }

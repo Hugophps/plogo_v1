@@ -7,10 +7,12 @@ class DriverHomePage extends StatelessWidget {
     super.key,
     required this.profile,
     required this.onOpenProfile,
+    required this.onOpenMap,
   });
 
   final Profile profile;
   final VoidCallback onOpenProfile;
+  final VoidCallback onOpenMap;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +95,7 @@ class DriverHomePage extends StatelessWidget {
                       ),
                       child: Text(
                         profile.nextSessionStatus ??
-                            'Statut: aucune session planifiée',
+                            'Statut: aucune session planifiee',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -106,7 +108,7 @@ class DriverHomePage extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: () {},
                         icon: const Icon(Icons.flash_on_outlined),
-                        label: const Text('Réserver une session de charge'),
+                        label: const Text('Reserver une session de charge'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           foregroundColor: const Color(0xFF2C75FF),
@@ -126,17 +128,12 @@ class DriverHomePage extends StatelessWidget {
               const SizedBox(height: 24),
               Expanded(
                 child: ListView(
-                  children: const [
-                    _DriverSectionCard(
-                      title: 'Carte des bornes',
-                      description:
-                          'Explorez les bornes disponibles autour de vous.',
-                      icon: Icons.map_outlined,
-                    ),
-                    SizedBox(height: 16),
-                    _DriverSectionCard(
+                  children: [
+                    _DriverMapPreviewCard(onTap: onOpenMap),
+                    const SizedBox(height: 16),
+                    const _DriverSectionCard(
                       title: 'Calendrier',
-                      description: 'Suivez vos sessions passées et à venir.',
+                      description: 'Suivez vos sessions a venir.',
                       icon: Icons.calendar_today,
                     ),
                   ],
@@ -219,6 +216,69 @@ class _DriverSectionCard extends StatelessWidget {
           ),
           const Icon(Icons.chevron_right, color: Colors.black26),
         ],
+      ),
+    );
+  }
+}
+
+class _DriverMapPreviewCard extends StatelessWidget {
+  const _DriverMapPreviewCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(0, 0, 0, 0.05),
+              blurRadius: 15,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: const Color.fromRGBO(44, 117, 255, 0.12),
+              ),
+              child: const Icon(
+                Icons.map_outlined,
+                color: Color(0xFF2C75FF),
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Trouver une borne proche de moi',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Ouvrez la carte pour explorer les bornes Plogo autour de vous.',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.black26),
+          ],
+        ),
       ),
     );
   }
