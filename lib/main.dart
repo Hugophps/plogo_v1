@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/app_timezone.dart';
 import 'core/supabase_bootstrap.dart';
 import 'features/account/account_completion_page.dart';
 import 'features/account/role_selection_page.dart';
@@ -20,6 +21,7 @@ import 'features/stations/station_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initAppTimezone();
   await initSupabase();
   runApp(const MyApp());
 }

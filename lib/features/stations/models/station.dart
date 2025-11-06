@@ -1,3 +1,5 @@
+import 'station_recurring_rule.dart';
+
 class Station {
   const Station({
     required this.id,
@@ -19,6 +21,7 @@ class Station {
     this.locationLng,
     this.locationFormatted,
     this.locationComponents,
+    this.recurringRules = const [],
   });
 
   final String id;
@@ -40,6 +43,7 @@ class Station {
   final double? locationLng;
   final String? locationFormatted;
   final List<dynamic>? locationComponents;
+  final List<StationRecurringRule> recurringRules;
 
   Station copyWith({
     String? name,
@@ -59,6 +63,7 @@ class Station {
     double? locationLng,
     String? locationFormatted,
     List<dynamic>? locationComponents,
+    List<StationRecurringRule>? recurringRules,
   }) {
     return Station(
       id: id,
@@ -80,6 +85,7 @@ class Station {
       locationLng: locationLng ?? this.locationLng,
       locationFormatted: locationFormatted ?? this.locationFormatted,
       locationComponents: locationComponents ?? this.locationComponents,
+      recurringRules: recurringRules ?? this.recurringRules,
     );
   }
 
@@ -104,6 +110,21 @@ class Station {
       locationLng: (map['location_lng'] as num?)?.toDouble(),
       locationFormatted: map['location_formatted'] as String?,
       locationComponents: map['location_components'] as List<dynamic>?,
+      recurringRules: _parseRecurringRules(map['recurring_rules']),
     );
+  }
+
+  static List<StationRecurringRule> _parseRecurringRules(dynamic value) {
+    if (value is! List) return const [];
+    final rules = <StationRecurringRule>[];
+    for (final element in value) {
+      if (element is Map<String, dynamic>) {
+        final rule = StationRecurringRule.tryParse(element);
+        if (rule != null) {
+          rules.add(rule);
+        }
+      }
+    }
+    return rules;
   }
 }

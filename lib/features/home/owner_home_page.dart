@@ -6,6 +6,7 @@ import '../station_members/members_management_page.dart';
 import '../station_members/models/station_member.dart';
 import '../station_members/station_members_repository.dart';
 import '../stations/models/station.dart';
+import '../stations/owner_station_agenda_page.dart';
 
 class OwnerHomePage extends StatefulWidget {
   const OwnerHomePage({
@@ -100,7 +101,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     final link = widget.station?.whatsappGroupUrl;
     if (link == null || link.isEmpty) {
       _showSnackBar(
-        'Ajoutez le lien du groupe WhatsApp depuis les paramètres de la borne.',
+        'Ajoutez le lien du groupe WhatsApp depuis les paramÃƒÂ¨tres de la borne.',
       );
       return;
     }
@@ -110,7 +111,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
       return;
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _showSnackBar('Impossible d’ouvrir WhatsApp.');
+      _showSnackBar('Impossible dÃ¢â‚¬â„¢ouvrir WhatsApp.');
     }
   }
 
@@ -118,6 +119,21 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openAgenda() {
+    final station = widget.station;
+    if (station == null) {
+      _showSnackBar(
+        'Publiez votre borne pour acc\u00e9der \u00e0 son agenda.',
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OwnerStationAgendaPage(station: station),
+      ),
+    );
   }
 
   int get _approvedCount =>
@@ -202,11 +218,12 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
               Expanded(
                 child: ListView(
                   children: [
-                    const _HomeSectionCard(
+                    _HomeSectionCard(
                       title: 'Calendrier',
                       description:
-                          'Consultez et gérez les créneaux réservés ou disponibles.',
+                          'Consultez et g\u00e9rez les cr\u00e9neaux r\u00e9serv\u00e9s ou disponibles.',
                       icon: Icons.calendar_today,
+                      onTap: _openAgenda,
                     ),
                     const SizedBox(height: 16),
                     if (widget.station != null)
@@ -239,15 +256,17 @@ class _HomeSectionCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.icon,
+    this.onTap,
   });
 
   final String title;
   final String description;
   final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -293,6 +312,15 @@ class _HomeSectionCard extends StatelessWidget {
           ),
           const Icon(Icons.chevron_right, color: Colors.black26),
         ],
+      ),
+    );
+    if (onTap == null) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: card,
       ),
     );
   }
@@ -419,7 +447,7 @@ class _MembersOverviewCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: onOpenManagement,
-                  child: const Text('Gérer les membres'),
+                  child: const Text('GÃƒÂ©rer les membres'),
                 ),
               ],
             ),
@@ -474,7 +502,7 @@ class _MembersPlaceholderCard extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Publiez votre borne pour inviter des conducteurs et gérer leurs demandes depuis cette section.',
+            'Publiez votre borne pour inviter des conducteurs et gÃƒÂ©rer leurs demandes depuis cette section.',
             style: TextStyle(color: Colors.black54, height: 1.4),
           ),
         ],
@@ -600,3 +628,12 @@ class _StationSection extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
