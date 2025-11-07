@@ -30,4 +30,47 @@ class StationSlotsRepository {
         .map(StationSlot.fromMap)
         .toList();
   }
+
+  Future<StationSlot> createOwnerBlock({
+    required String stationId,
+    required DateTime startAt,
+    required DateTime endAt,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    final response = await _client
+        .from('station_slots')
+        .insert({
+          'station_id': stationId,
+          'start_at': startAt.toUtc().toIso8601String(),
+          'end_at': endAt.toUtc().toIso8601String(),
+          'type': 'owner_block',
+          if (userId != null) 'created_by': userId,
+        })
+        .select()
+        .single();
+
+    return StationSlot.fromMap(response as Map<String, dynamic>);
+  }
+
+  Future<StationSlot> updateSlot({
+    required String slotId,
+    required DateTime startAt,
+    required DateTime endAt,
+  }) async {
+    final response = await _client
+        .from('station_slots')
+        .update({
+          'start_at': startAt.toUtc().toIso8601String(),
+          'end_at': endAt.toUtc().toIso8601String(),
+        })
+        .eq('id', slotId)
+        .select()
+        .single();
+
+    return StationSlot.fromMap(response as Map<String, dynamic>);
+  }
+
+  Future<void> deleteSlot(String slotId) async {
+    await _client.from('station_slots').delete().eq('id', slotId);
+  }
 }

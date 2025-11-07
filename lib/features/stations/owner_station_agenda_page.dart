@@ -7,6 +7,7 @@ import '../../core/app_timezone.dart';
 import 'models/station.dart';
 import 'models/station_recurring_rule.dart';
 import 'models/station_slot.dart';
+import 'owner_block_slot_page.dart';
 import 'recurring_unavailability_page.dart';
 import 'station_repository.dart';
 import 'station_slots_repository.dart';
@@ -113,6 +114,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           color: _colorForType(slot.type),
           type: slot.type,
           isDerived: false,
+          slot: slot,
         ),
       );
     }
@@ -212,6 +214,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           color: _greyRecurringColor,
           type: StationSlotType.recurringUnavailability,
           isDerived: true,
+          slot: null,
         ),
       );
     }
@@ -415,9 +418,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed: () {
-                      // Navigation vers la creation d'un creneau ponctuel (a implementer plus tard).
-                    },
+                    onPressed: () => _openOwnerBlockForm(),
                     child: const Text(
                       'Bloquer un cr\u00e9neau',
                       style: TextStyle(fontWeight: FontWeight.w700),
@@ -454,7 +455,9 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     return Stack(
       children: [
         ListView.builder(
+          shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           itemCount: labels.length,
           itemBuilder: (context, index) {
             return SizedBox(
@@ -574,6 +577,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
               type: entry.type,
               isDerived: entry.isDerived,
               color: entry.color,
+              slot: entry.slot,
             ),
           );
         }
@@ -604,17 +608,46 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     final baseColor = segment.color;
     final color = segment.isDerived ? baseColor.withOpacity(0.5) : baseColor;
 
+    final slot = segment.slot;
+    final child = Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: segment.type == StationSlotType.ownerBlock
+              ? const Color(0xFFB96500)
+              : color.withOpacity(0.8),
+          width: segment.type == StationSlotType.ownerBlock ? 1.5 : 1,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      alignment: Alignment.topLeft,
+      child: segment.type == StationSlotType.ownerBlock && slot != null
+          ? Text(
+              '${_shortTime(slot.startAt)} - ${_shortTime(slot.endAt)}',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+
+    Widget current = child;
+    if (slot != null && slot.type == StationSlotType.ownerBlock) {
+      current = GestureDetector(
+        onTap: () => _openOwnerBlockForm(slot: slot),
+        child: child,
+      );
+    }
+
     return Positioned(
       left: left,
       top: top,
       width: width,
       height: height,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+      child: current,
     );
   }
 
@@ -622,6 +655,36 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     return first.year == second.year &&
         first.month == second.month &&
         first.day == second.day;
+  }
+
+  String _shortTime(DateTime? date) {
+    if (date == null) return '';
+    final local = brusselsFromUtc(date.toUtc());
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return local.minute == 0 ? '${hour}h' : '${hour}h$minute';
+  }
+
+  Future<void> _openOwnerBlockForm({StationSlot? slot}) async {
+    final station = _station;
+    if (station == null) return;
+    final now = nowInBrussels();
+    final initialDate = slot != null
+        ? brusselsFromUtc(slot.startAt.toUtc())
+        : (_weekStart.isBefore(now) ? now : _weekStart);
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => OwnerBlockSlotPage(
+          station: station,
+          repository: _slotsRepository,
+          slot: slot,
+          initialDate: initialDate,
+        ),
+      ),
+    );
+    if (result == true) {
+      await _loadSlots();
+    }
   }
 
   Future<void> _openRecurringManagement() async {
@@ -658,6 +721,7 @@ class StationAgendaEntry {
     required this.color,
     required this.type,
     required this.isDerived,
+    this.slot,
   });
 
   final DateTime start;
@@ -665,6 +729,7 @@ class StationAgendaEntry {
   final Color color;
   final StationSlotType type;
   final bool isDerived;
+  final StationSlot? slot;
 }
 
 class _AgendaSegment {
@@ -675,6 +740,7 @@ class _AgendaSegment {
     required this.type,
     required this.isDerived,
     required this.color,
+    this.slot,
   });
 
   final int dayIndex;
@@ -683,6 +749,7 @@ class _AgendaSegment {
   final StationSlotType type;
   final bool isDerived;
   final Color color;
+  final StationSlot? slot;
 }
 
 class _AgendaGridPainter extends CustomPainter {
