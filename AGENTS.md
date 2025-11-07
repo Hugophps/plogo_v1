@@ -43,6 +43,7 @@ Ce document guide les agents et contributeurs travaillant sur ce dépôt.
   - Nom de champ : `prenom` ✅ au lieu de `prénom` ❌  
   - Texte affiché : `"Prénom"` ✅ dans l’interface, via une clé `prenom_label`.
 - En cas de doute, conserver des noms **compatibles UTF-8 simples** pour les structures de données et **afficher les accents uniquement dans l’UI**.
+- Si les accents posent problème dans l'écriture du code alors remplacer le caractère avec accent en caractère sans accent (exemple : é devient e).
 
 ## Vérifications rapides avant PR
 - Textes et labels : en français uniquement.

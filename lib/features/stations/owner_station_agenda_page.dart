@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -7,9 +7,10 @@ import '../../core/app_timezone.dart';
 import 'models/station.dart';
 import 'models/station_recurring_rule.dart';
 import 'models/station_slot.dart';
+import 'recurring_unavailability_page.dart';
+import 'station_repository.dart';
 import 'station_slots_repository.dart';
 
-const double _hourHeight = 64;
 const double _timeColumnWidth = 60;
 const double _eventHorizontalPadding = 6;
 
@@ -24,7 +25,9 @@ class OwnerStationAgendaPage extends StatefulWidget {
 
 class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   final _slotsRepository = const StationSlotsRepository();
+  final _stationRepository = const StationRepository();
 
+  late Station _station;
   late tz.TZDateTime _weekStart;
   late tz.TZDateTime _weekEnd;
 
@@ -35,6 +38,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   @override
   void initState() {
     super.initState();
+    _station = widget.station;
     _weekStart = _startOfWeek(nowInBrussels());
     _weekEnd = _weekStart.add(const Duration(days: 7));
     _loadSlots();
@@ -53,7 +57,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     });
     try {
       final fetched = await _slotsRepository.fetchSlots(
-        stationId: widget.station.id,
+        stationId: _station.id,
         rangeStart: _weekStart.toUtc(),
         rangeEnd: _weekEnd.toUtc(),
       );
@@ -112,8 +116,56 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
         ),
       );
     }
-    items.addAll(_rulesToEntries(widget.station.recurringRules));
+    final recurringRules = _resolveRecurringRules(_station);
+    items.addAll(_rulesToEntries(recurringRules));
     return items;
+  }
+
+  List<StationRecurringRule> _resolveRecurringRules(Station station) {
+    final grouped = <int, List<StationRecurringRule>>{};
+    for (final rule in station.recurringRules) {
+      grouped.putIfAbsent(rule.weekday, () => []).add(rule);
+    }
+
+    final resolved = <StationRecurringRule>[];
+    for (var day = DateTime.monday; day <= DateTime.sunday; day++) {
+      final daily = grouped[day];
+      if (daily == null || daily.isEmpty) {
+        resolved.addAll(_defaultRecurringRulesForDay(day));
+      } else {
+        final sorted = [...daily]
+          ..sort((a, b) => _compareTimeStrings(a.startTime, b.startTime));
+        resolved.addAll(sorted);
+      }
+    }
+    return resolved;
+  }
+
+  List<StationRecurringRule> _defaultRecurringRulesForDay(int weekday) {
+    return [
+      StationRecurringRule(
+        weekday: weekday,
+        startTime: '00:00',
+        endTime: '08:00',
+      ),
+      StationRecurringRule(
+        weekday: weekday,
+        startTime: '22:00',
+        endTime: '24:00',
+      ),
+    ];
+  }
+
+  int _compareTimeStrings(String a, String b) {
+    return _timeStringToMinutes(a).compareTo(_timeStringToMinutes(b));
+  }
+
+  int _timeStringToMinutes(String time) {
+    if (time == '24:00') return 24 * 60;
+    final parts = time.split(':');
+    final hours = int.parse(parts[0]);
+    final minutes = int.parse(parts[1]);
+    return (hours * 60) + minutes;
   }
 
   List<StationAgendaEntry> _rulesToEntries(
@@ -167,6 +219,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   }
 
   (int, int) _parseTime(String value) {
+    if (value == '24:00') return (24, 0);
     final parts = value.split(':');
     if (parts.length != 2) return (0, 0);
     final hour = int.tryParse(parts[0]) ?? 0;
@@ -190,23 +243,28 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     final theme = Theme.of(context);
     final entries = _entries;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFB347),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Agenda de la borne',
-          style: TextStyle(fontWeight: FontWeight.w700),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.of(context).pop(_station);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F8FC),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFB347),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          title: const Text(
+            'Agenda de la borne',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(_station),
+          ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-      ),
-      body: Column(
+        body: Column(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -286,61 +344,54 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final totalWidth = constraints.maxWidth;
-                        return Scrollbar(
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
-                            child: SizedBox(
-                              width: totalWidth,
-                              height: _hourHeight * 24,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  SizedBox(
-                                    width: _timeColumnWidth,
-                                    child: _buildTimeColumn(),
-                                  ),
-                                  Expanded(
-                                    child: LayoutBuilder(
-                                      builder: (context, gridConstraints) {
-                                        final columnWidth =
-                                            gridConstraints.maxWidth / 7;
-                                        final segments =
-                                            _buildSegments(entries);
-                                        return Stack(
-                                          children: [
-                                            Positioned.fill(
-                                              child: CustomPaint(
-                                                painter: _AgendaGridPainter(
-                                                  columnCount: 7,
-                                                  hourHeight: _hourHeight,
-                                                ),
-                                              ),
-                                            ),
-                                            if (_loading)
-                                              const Positioned.fill(
-                                                child: IgnorePointer(
-                                                  child: Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                ),
-                                              ),
-                                            ...segments.map(
-                                              (segment) =>
-                                                  _buildEventSegment(
-                                                segment,
-                                                columnWidth,
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
+                        final availableHeight = constraints.maxHeight;
+                        final rowHeight = math.max(availableHeight - 1, 0).toDouble();
+                        final hourHeight = rowHeight / 24;
+                        final gridWidth =
+                            math.max(constraints.maxWidth - _timeColumnWidth, 0);
+                        final columnWidth = gridWidth / 7;
+                        final segments = _buildSegments(entries);
+
+                        return SizedBox(
+                          height: rowHeight,
+                          width: constraints.maxWidth,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                width: _timeColumnWidth,
+                                child: _buildTimeColumn(hourHeight),
                               ),
-                            ),
+                              Expanded(
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: _AgendaGridPainter(
+                                          columnCount: 7,
+                                          hourHeight: hourHeight,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_loading)
+                                      const Positioned.fill(
+                                        child: IgnorePointer(
+                                          child: Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        ),
+                                      ),
+                                    ...segments.map(
+                                      (segment) => _buildEventSegment(
+                                        segment,
+                                        columnWidth,
+                                        hourHeight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -382,9 +433,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
                   child: IconButton(
                     icon: const Icon(Icons.more_horiz),
                     color: Colors.black87,
-                    onPressed: () {
-                      // Navigation vers la gestion des indisponibilites recurrentes a venir.
-                    },
+                    onPressed: _openRecurringManagement,
                   ),
                 ),
               ],
@@ -392,35 +441,40 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
-  Widget _buildTimeColumn() {
+  Widget _buildTimeColumn(double hourHeight) {
     final labels = List<String>.generate(
       24,
       (index) => '${index.toString().padLeft(2, '0')}:00',
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        for (final label in labels)
-          SizedBox(
-            height: _hourHeight,
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+        ListView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: labels.length,
+          itemBuilder: (context, index) {
+            return SizedBox(
+              height: hourHeight,
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Text(
+                  labels[index],
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
+        ),
         Align(
-          alignment: Alignment.topRight,
+          alignment: Alignment.bottomRight,
           child: Text(
             '24:00',
             style: const TextStyle(
@@ -443,34 +497,40 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
         children: [
           const SizedBox(width: _timeColumnWidth),
           Expanded(
-            child: Row(
-              children: List.generate(7, (index) {
-                final date = _weekStart.add(Duration(days: index));
-                final isToday = _isSameDay(date, today);
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final columnWidth = constraints.maxWidth / 7;
+                return Row(
+                  children: List.generate(7, (index) {
+                    final date = _weekStart.add(Duration(days: index));
+                    final isToday = _isSameDay(date, today);
 
-                final numberStyle = TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isToday ? const Color(0xFF2C75FF) : Colors.black87,
-                );
+                    final numberStyle = TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isToday ? const Color(0xFF2C75FF) : Colors.black87,
+                    );
 
-                final letterStyle = TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isToday ? const Color(0xFF2C75FF) : Colors.black54,
-                );
+                    final letterStyle = TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isToday ? const Color(0xFF2C75FF) : Colors.black54,
+                    );
 
-                return Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${date.day}', style: numberStyle),
-                      const SizedBox(height: 4),
-                      Text(_dayLetters[date.weekday - 1], style: letterStyle),
-                    ],
-                  ),
+                    return SizedBox(
+                      width: columnWidth,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('${date.day}', style: numberStyle),
+                          const SizedBox(height: 4),
+                          Text(_dayLetters[date.weekday - 1], style: letterStyle),
+                        ],
+                      ),
+                    );
+                  }),
                 );
-              }),
+              },
             ),
           ),
         ],
@@ -524,17 +584,22 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     return segments;
   }
 
-  Widget _buildEventSegment(_AgendaSegment segment, double columnWidth) {
-    final double top = (segment.startMinutes / 60) * _hourHeight;
+  Widget _buildEventSegment(
+    _AgendaSegment segment,
+    double columnWidth,
+    double hourHeight,
+  ) {
+    final double top = (segment.startMinutes / 60) * hourHeight;
     final double height = math
         .max(
-          ((segment.endMinutes - segment.startMinutes) / 60) * _hourHeight,
+          ((segment.endMinutes - segment.startMinutes) / 60) * hourHeight,
           10,
         )
         .toDouble();
     final double left =
         segment.dayIndex * columnWidth + _eventHorizontalPadding;
-    final double width = columnWidth - (_eventHorizontalPadding * 2);
+    final double width =
+        math.max(columnWidth - (_eventHorizontalPadding * 2), 0);
 
     final baseColor = segment.color;
     final color = segment.isDerived ? baseColor.withOpacity(0.5) : baseColor;
@@ -557,6 +622,32 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     return first.year == second.year &&
         first.month == second.month &&
         first.day == second.day;
+  }
+
+  Future<void> _openRecurringManagement() async {
+    final result = await Navigator.of(context).push<Station>(
+      MaterialPageRoute(
+        builder: (_) => RecurringUnavailabilityPage(
+          station: _station,
+          onSave: (rules) async {
+            final updated = await _stationRepository.updateStation(
+              _station.id,
+              {
+                'recurring_rules': rules.map((rule) => rule.toMap()).toList(),
+              },
+            );
+            return updated;
+          },
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _station = result;
+      });
+      await _loadSlots();
+    }
   }
 }
 
@@ -660,4 +751,9 @@ const _monthNamesShort = [
 
 const _dayLetters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-const _greyRecurringColor = Color(0xFFE6E9EF);
+const _greyRecurringColor = Color(0xFFD1D6E2);
+
+
+
+
+

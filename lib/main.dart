@@ -311,6 +311,12 @@ class _AuthGateState extends State<AuthGate> {
     }
   }
 
+  void _handleStationUpdated(Station station) {
+    setState(() {
+      _station = station;
+    });
+  }
+
   @override
   void dispose() {
     _authSubscription?.cancel();
@@ -343,6 +349,7 @@ class _AuthGateState extends State<AuthGate> {
           onCreateStation: () => _openStationCreate(context),
           onEditStation: () => _openStationEdit(context),
           station: _station,
+          onStationUpdated: _handleStationUpdated,
         );
       case AuthDestination.driverHome:
         return DriverHomePage(

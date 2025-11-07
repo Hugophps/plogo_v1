@@ -17,7 +17,7 @@ Authentification unique par rôle, choisie à l’onboarding, non modifiable ens
 - Framework : Flutter (Android/iOS envisagés plus tard, MVP = web).
 - Backend : Supabase (authentification, base de données, stockage, RPC).
 - Réservation : calendrier de disponibilités avec gestion simple des conflits et fuseaux horaires.
-- Langue : 100 % français (UI, messages, labels).
+- Langue : 100 % français (UI, messages, labels). Si les accents posent problème dans l'écriture du code alors remplacer le caractère avec accent en caractère sans accent (exemple : é devient e).
 
 ## Design & Direction Artistique
 - Style : moderne, simple, clair, rassurant.

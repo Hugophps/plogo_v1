@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../profile/models/profile.dart';
@@ -16,6 +16,7 @@ class OwnerHomePage extends StatefulWidget {
     required this.onCreateStation,
     required this.onEditStation,
     this.station,
+    this.onStationUpdated,
   });
 
   final Profile profile;
@@ -23,6 +24,7 @@ class OwnerHomePage extends StatefulWidget {
   final VoidCallback onCreateStation;
   final VoidCallback onEditStation;
   final Station? station;
+  final ValueChanged<Station>? onStationUpdated;
 
   @override
   State<OwnerHomePage> createState() => _OwnerHomePageState();
@@ -30,6 +32,7 @@ class OwnerHomePage extends StatefulWidget {
 
 class _OwnerHomePageState extends State<OwnerHomePage> {
   final _membersRepository = const StationMembersRepository();
+  Station? _station;
   List<StationMember>? _members;
   bool _loadingMembers = false;
   String? _membersError;
@@ -37,7 +40,8 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
   @override
   void initState() {
     super.initState();
-    if (widget.station != null) {
+    _station = widget.station;
+    if (_station != null) {
       _loadMembers();
     }
   }
@@ -46,7 +50,8 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
   void didUpdateWidget(covariant OwnerHomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.station?.id != widget.station?.id) {
-      if (widget.station != null) {
+      _station = widget.station;
+      if (_station != null) {
         _loadMembers();
       } else {
         setState(() {
@@ -59,7 +64,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
   }
 
   Future<void> _loadMembers() async {
-    final station = widget.station;
+    final station = _station;
     if (station == null) return;
     setState(() {
       _loadingMembers = true;
@@ -82,7 +87,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
   }
 
   Future<void> _openMembersManagement() async {
-    final station = widget.station;
+    final station = _station;
     if (station == null) return;
     final updated = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -98,10 +103,10 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
   }
 
   Future<void> _openWhatsAppGroup() async {
-    final link = widget.station?.whatsappGroupUrl;
+    final link = _station?.whatsappGroupUrl;
     if (link == null || link.isEmpty) {
       _showSnackBar(
-        'Ajoutez le lien du groupe WhatsApp depuis les paramÃƒÂ¨tres de la borne.',
+        'Ajoutez le lien du groupe WhatsApp depuis les param\u00e8tres de la borne.',
       );
       return;
     }
@@ -111,7 +116,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
       return;
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _showSnackBar('Impossible dÃ¢â‚¬â„¢ouvrir WhatsApp.');
+      _showSnackBar('Impossible d\u2019ouvrir WhatsApp.');
     }
   }
 
@@ -121,19 +126,26 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _openAgenda() {
-    final station = widget.station;
+  Future<void> _openAgenda() async {
+    final station = _station;
     if (station == null) {
       _showSnackBar(
         'Publiez votre borne pour acc\u00e9der \u00e0 son agenda.',
       );
       return;
     }
-    Navigator.of(context).push(
+    final updated = await Navigator.of(context).push<Station>(
       MaterialPageRoute(
         builder: (_) => OwnerStationAgendaPage(station: station),
       ),
     );
+    if (updated != null) {
+      setState(() {
+        _station = updated;
+      });
+      widget.onStationUpdated?.call(updated);
+      await _loadMembers();
+    }
   }
 
   int get _approvedCount =>
@@ -210,7 +222,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
               ),
               const SizedBox(height: 24),
               _StationSection(
-                station: widget.station,
+                station: _station,
                 onCreateStation: widget.onCreateStation,
                 onEditStation: widget.onEditStation,
               ),
@@ -223,10 +235,10 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                       description:
                           'Consultez et g\u00e9rez les cr\u00e9neaux r\u00e9serv\u00e9s ou disponibles.',
                       icon: Icons.calendar_today,
-                      onTap: _openAgenda,
+                      onTap: () => _openAgenda(),
                     ),
                     const SizedBox(height: 16),
-                    if (widget.station != null)
+                    if (_station != null)
                       _MembersOverviewCard(
                         loading: _loadingMembers,
                         error: _membersError,
@@ -236,7 +248,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                         onOpenManagement: _openMembersManagement,
                         onOpenWhatsApp: _openWhatsAppGroup,
                         hasWhatsAppLink:
-                            (widget.station?.whatsappGroupUrl ?? '').isNotEmpty,
+                            (_station?.whatsappGroupUrl ?? '').isNotEmpty,
                       )
                     else
                       const _MembersPlaceholderCard(),
@@ -447,7 +459,7 @@ class _MembersOverviewCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: onOpenManagement,
-                  child: const Text('GÃƒÂ©rer les membres'),
+                  child: const Text('GÃƒÆ’Ã‚Â©rer les membres'),
                 ),
               ],
             ),
@@ -502,7 +514,7 @@ class _MembersPlaceholderCard extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Publiez votre borne pour inviter des conducteurs et gÃƒÂ©rer leurs demandes depuis cette section.',
+            'Publiez votre borne pour inviter des conducteurs et gÃƒÆ’Ã‚Â©rer leurs demandes depuis cette section.',
             style: TextStyle(color: Colors.black54, height: 1.4),
           ),
         ],
@@ -628,6 +640,11 @@ class _StationSection extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 
 
 
