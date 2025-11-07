@@ -36,6 +36,7 @@ class DriverStationRepository {
         location_lng,
         location_formatted,
         location_components,
+        recurring_rules,
         owner:profiles!stations_owner_id_fkey (
           id,
           full_name,

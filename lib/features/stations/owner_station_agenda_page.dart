@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../core/app_timezone.dart';
+import '../../core/supabase_bootstrap.dart';
+import '../profile/models/profile.dart';
+import '../profile/profile_repository.dart';
+import 'driver_station_booking_page.dart';
+import 'member_slot_details_page.dart';
 import 'models/station.dart';
 import 'models/station_recurring_rule.dart';
 import 'models/station_slot.dart';
@@ -12,13 +17,24 @@ import 'recurring_unavailability_page.dart';
 import 'station_repository.dart';
 import 'station_slots_repository.dart';
 
+enum StationAgendaViewer { owner, member }
+
 const double _timeColumnWidth = 60;
 const double _eventHorizontalPadding = 6;
 
 class OwnerStationAgendaPage extends StatefulWidget {
-  const OwnerStationAgendaPage({super.key, required this.station});
+  const OwnerStationAgendaPage({
+    super.key,
+    required this.station,
+    this.viewer = StationAgendaViewer.owner,
+    this.viewerProfile,
+    this.membershipId,
+  });
 
   final Station station;
+  final StationAgendaViewer viewer;
+  final Profile? viewerProfile;
+  final String? membershipId;
 
   @override
   State<OwnerStationAgendaPage> createState() => _OwnerStationAgendaPageState();
@@ -27,6 +43,7 @@ class OwnerStationAgendaPage extends StatefulWidget {
 class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   final _slotsRepository = const StationSlotsRepository();
   final _stationRepository = const StationRepository();
+  final _profileRepository = const ProfileRepository();
 
   late Station _station;
   late tz.TZDateTime _weekStart;
@@ -36,10 +53,22 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   String? _error;
   List<StationSlot> _slots = const [];
 
+  bool get _isOwnerViewer => widget.viewer == StationAgendaViewer.owner;
+  bool get _hasMemberContext =>
+      widget.viewerProfile != null && widget.membershipId != null;
+  Color get _accentColor =>
+      _isOwnerViewer ? const Color(0xFFFFB347) : const Color(0xFF2C75FF);
+  Color get _accentForeground =>
+      _isOwnerViewer ? Colors.black : Colors.white;
+  String get _primaryButtonLabel =>
+      _isOwnerViewer ? 'Bloquer un cr\u00e9neau' : 'R\u00e9server un cr\u00e9neau';
+  String? _currentProfileId;
+
   @override
   void initState() {
     super.initState();
     _station = widget.station;
+    _currentProfileId = supabase.auth.currentUser?.id;
     _weekStart = _startOfWeek(nowInBrussels());
     _weekEnd = _weekStart.add(const Duration(days: 7));
     _loadSlots();
@@ -254,7 +283,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF7F8FC),
         appBar: AppBar(
-          backgroundColor: const Color(0xFFFFB347),
+          backgroundColor: _accentColor,
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
@@ -411,32 +440,36 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
                 Expanded(
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFB347),
-                      foregroundColor: Colors.black,
+                      backgroundColor: _accentColor,
+                      foregroundColor: _accentForeground,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed: () => _openOwnerBlockForm(),
-                    child: const Text(
-                      'Bloquer un cr\u00e9neau',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                    onPressed: _isOwnerViewer
+                        ? _openOwnerBlockForm
+                        : (_hasMemberContext ? _openMemberBookingForm : null),
+                    child: Text(
+                      _primaryButtonLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFB347),
-                    borderRadius: BorderRadius.circular(16),
+                if (_isOwnerViewer) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _accentColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.more_horiz),
+                      color: _accentForeground,
+                      onPressed: _openRecurringManagement,
+                    ),
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.more_horiz),
-                    color: Colors.black87,
-                    onPressed: _openRecurringManagement,
-                  ),
-                ),
+                ],
               ],
             ),
           ),
@@ -605,39 +638,78 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     final double width =
         math.max(columnWidth - (_eventHorizontalPadding * 2), 0);
 
-    final baseColor = segment.color;
-    final color = segment.isDerived ? baseColor.withOpacity(0.5) : baseColor;
-
     final slot = segment.slot;
+    final isMemberBooking = segment.type == StationSlotType.memberBooking;
+    final isOwnerBlock = segment.type == StationSlotType.ownerBlock;
+    final isOwnMemberSlot =
+        isMemberBooking && slot?.createdBy != null && slot!.createdBy == _currentProfileId;
+
+    Color background;
+    Color borderColor = Colors.transparent;
+    double borderWidth = 1;
+
+    if (segment.type == StationSlotType.recurringUnavailability) {
+      background = _greyRecurringColor;
+    } else if (isOwnerBlock) {
+      background = const Color(0xFFFFE2BF);
+      borderColor = const Color(0xFFB96500);
+      borderWidth = 1.5;
+    } else if (isMemberBooking) {
+      background = isOwnMemberSlot
+          ? const Color(0xFFD2E1FF)
+          : const Color(0xFFF8FAFF);
+      borderColor = const Color(0xFF2C75FF);
+      borderWidth = 1.2;
+    } else {
+      background = segment.color;
+      borderColor = segment.color;
+    }
+
+    if (segment.isDerived) {
+      background = background.withOpacity(0.6);
+    }
+
+    final showTimeLabel =
+        (isOwnerBlock || isMemberBooking) && slot != null;
+
     final child = Container(
       decoration: BoxDecoration(
-        color: color,
+        color: background,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: segment.type == StationSlotType.ownerBlock
-              ? const Color(0xFFB96500)
-              : color.withOpacity(0.8),
-          width: segment.type == StationSlotType.ownerBlock ? 1.5 : 1,
-        ),
+        border: Border.all(color: borderColor, width: borderWidth),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       alignment: Alignment.topLeft,
-      child: segment.type == StationSlotType.ownerBlock && slot != null
+      child: showTimeLabel
           ? Text(
-              '${_shortTime(slot.startAt)} - ${_shortTime(slot.endAt)}',
-              style: const TextStyle(
+              '${_shortTime(slot!.startAt)} - ${_shortTime(slot.endAt)}',
+              style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                color: borderColor,
               ),
             )
           : const SizedBox.shrink(),
     );
 
     Widget current = child;
-    if (slot != null && slot.type == StationSlotType.ownerBlock) {
+    VoidCallback? onTap;
+    if (slot != null) {
+      if (_isOwnerViewer) {
+        if (isOwnerBlock) {
+          onTap = () => _openOwnerBlockForm(slot: slot);
+        } else if (isMemberBooking) {
+          onTap = () => _openMemberSlotDetails(slot);
+        }
+      } else if (isMemberBooking && isOwnMemberSlot) {
+        onTap = () => _openMemberBookingForm(slot: slot);
+      }
+    }
+
+    if (onTap != null) {
       current = GestureDetector(
-        onTap: () => _openOwnerBlockForm(slot: slot),
+        behavior: HitTestBehavior.translucent,
+        onTap: onTap,
         child: child,
       );
     }
@@ -684,6 +756,74 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     );
     if (result == true) {
       await _loadSlots();
+    }
+  }
+
+  Future<void> _openMemberBookingForm({StationSlot? slot}) async {
+    if (!_hasMemberContext) {
+      _showMissingMemberContext();
+      return;
+    }
+    final station = _station;
+    final initialDate = slot != null
+        ? brusselsFromUtc(slot.startAt.toUtc())
+        : (_weekStart.isBefore(nowInBrussels()) ? nowInBrussels() : _weekStart);
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DriverStationBookingPage(
+          station: station,
+          repository: _slotsRepository,
+          slot: slot,
+          initialDate: initialDate,
+          profile: widget.viewerProfile!,
+          membershipId: widget.membershipId!,
+        ),
+      ),
+    );
+    if (result == true) {
+      await _loadSlots();
+    }
+  }
+
+  void _showMissingMemberContext() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Profil membre indisponible pour cette action.'),
+      ),
+    );
+  }
+
+  Future<void> _openMemberSlotDetails(StationSlot slot) async {
+    final profileId = slot.createdBy;
+    if (profileId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil du membre introuvable.')),
+      );
+      return;
+    }
+    try {
+      final profile = await _profileRepository.fetchProfileById(profileId);
+      if (!mounted) return;
+      if (profile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profil du membre introuvable.')),
+        );
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MemberSlotDetailsPage(
+            slot: slot,
+            profile: profile,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\u2019ouvrir ce cr\u00e9neau.')),
+      );
     }
   }
 

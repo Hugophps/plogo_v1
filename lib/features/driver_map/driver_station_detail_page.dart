@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../profile/models/profile.dart';
+import '../profile/profile_repository.dart';
+import '../stations/driver_station_booking_page.dart';
 import '../stations/models/station.dart';
+import '../stations/owner_station_agenda_page.dart';
+import '../stations/station_slots_repository.dart';
 import 'driver_station_models.dart';
 import 'driver_station_repository.dart';
 
@@ -21,9 +26,13 @@ class DriverStationDetailPage extends StatefulWidget {
 }
 
 class _DriverStationDetailPageState extends State<DriverStationDetailPage> {
+  final _slotsRepository = const StationSlotsRepository();
+  final _profileRepository = const ProfileRepository();
+
   late DriverStationView _stationView;
   bool _requestInProgress = false;
   bool _leaveInProgress = false;
+  Profile? _currentProfile;
 
   DriverStationMembership? get _membership => _stationView.membership;
 
@@ -127,14 +136,14 @@ class _DriverStationDetailPageState extends State<DriverStationDetailPage> {
 
     widgets.add(
       FilledButton(
-        onPressed: () => _showSoonMessage(context),
-        child: const Text('Reserver un creneau'),
+        onPressed: () => _openBookingFlow(station),
+        child: const Text('R\u00e9server un cr\u00e9neau'),
       ),
     );
     widgets.add(const SizedBox(height: 12));
     widgets.add(
       OutlinedButton(
-        onPressed: () => _showSoonMessage(context),
+        onPressed: () => _openAgenda(station),
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFF2C75FF),
           side: const BorderSide(color: Color(0xFF2C75FF)),
@@ -157,6 +166,70 @@ class _DriverStationDetailPageState extends State<DriverStationDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: widgets,
+    );
+  }
+
+  Future<Profile?> _ensureProfile() async {
+    if (_currentProfile != null) return _currentProfile;
+    final profile = await _profileRepository.fetchCurrentProfile();
+    if (mounted) {
+      setState(() => _currentProfile = profile);
+    } else {
+      _currentProfile = profile;
+    }
+    return profile;
+  }
+
+  Future<void> _openBookingFlow(Station station) async {
+    final membership = _membership;
+    if (membership == null || !membership.isApproved) return;
+    final profile = await _ensureProfile();
+    if (!mounted) return;
+    if (profile == null) {
+      _showProfileMissingSnack();
+      return;
+    }
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DriverStationBookingPage(
+          station: station,
+          repository: _slotsRepository,
+          profile: profile,
+          membershipId: membership.id,
+        ),
+      ),
+    );
+    if (result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cr\u00e9neau r\u00e9serv\u00e9.')),
+      );
+    }
+  }
+
+  Future<void> _openAgenda(Station station) async {
+    final membership = _membership;
+    if (membership == null || !membership.isApproved) return;
+    final profile = await _ensureProfile();
+    if (!mounted) return;
+    if (profile == null) {
+      _showProfileMissingSnack();
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OwnerStationAgendaPage(
+          station: station,
+          viewer: StationAgendaViewer.member,
+          viewerProfile: profile,
+          membershipId: membership.id,
+        ),
+      ),
+    );
+  }
+
+  void _showProfileMissingSnack() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profil conducteur incomplet.')),
     );
   }
 
@@ -199,12 +272,6 @@ class _DriverStationDetailPageState extends State<DriverStationDetailPage> {
         const SnackBar(content: Text('Impossible d\'ouvrir WhatsApp.')),
       );
     }
-  }
-
-  void _showSoonMessage(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalite bientot disponible.')),
-    );
   }
 
   void _showLeaveSheet() {

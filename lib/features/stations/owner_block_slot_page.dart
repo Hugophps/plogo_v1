@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../core/app_timezone.dart';
+import '../profile/models/profile.dart';
 import 'models/station.dart';
 import 'models/station_slot.dart';
 import 'station_slots_repository.dart';
+
+enum StationSlotEditorMode { ownerBlock, memberBooking }
 
 class OwnerBlockSlotPage extends StatefulWidget {
   const OwnerBlockSlotPage({
@@ -15,14 +18,21 @@ class OwnerBlockSlotPage extends StatefulWidget {
     required this.repository,
     this.slot,
     this.initialDate,
+    this.mode = StationSlotEditorMode.ownerBlock,
+    this.memberProfile,
+    this.membershipId,
   });
 
   final Station station;
   final StationSlotsRepository repository;
   final StationSlot? slot;
   final tz.TZDateTime? initialDate;
+  final StationSlotEditorMode mode;
+  final Profile? memberProfile;
+  final String? membershipId;
 
   bool get isEditing => slot != null;
+  bool get isMemberBooking => mode == StationSlotEditorMode.memberBooking;
 
   @override
   State<OwnerBlockSlotPage> createState() => _OwnerBlockSlotPageState();
@@ -39,6 +49,22 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
   List<_DayInterval> _availableIntervals = const [];
   List<String> _startOptions = const [];
   List<String> _endOptions = const [];
+
+  Color get _accentColor => widget.isMemberBooking ? const Color(0xFF2C75FF) : const Color(0xFFFFB347);
+  Color get _accentForeground => widget.isMemberBooking ? Colors.white : Colors.black;
+  String get _pageTitle => widget.isMemberBooking
+      ? (widget.isEditing ? 'Modifier ce cr\u00e9neau' : 'Choisir un cr\u00e9neau')
+      : (widget.isEditing ? 'Modifier ce cr\u00e9neau' : 'Bloquer un cr\u00e9neau');
+  String get _primaryButtonLabel => widget.isMemberBooking
+      ? (widget.isEditing ? 'Enregistrer les modifications' : 'R\u00e9server ce cr\u00e9neau')
+      : (widget.isEditing ? 'Enregistrer les modifications' : 'Bloquer ce cr\u00e9neau');
+  String get _submitErrorText => widget.isMemberBooking
+      ? 'Impossible d\u2019enregistrer la r\u00e9servation.'
+      : 'Impossible d\u2019enregistrer le cr\u00e9neau.';
+  String get _deleteErrorText =>
+      widget.isMemberBooking ? 'Impossible d\u2019annuler ce cr\u00e9neau.' : 'Impossible d\u2019annuler ce cr\u00e9neau.';
+  Color get _secondaryButtonColor =>
+      widget.isMemberBooking ? const Color(0xFF2C75FF) : const Color(0xFFFF6B6B);
 
   @override
   void initState() {
@@ -300,6 +326,18 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
           startAt: interval.start,
           endAt: interval.end,
         );
+      } else if (widget.isMemberBooking) {
+        final profile = widget.memberProfile;
+        final membershipId = widget.membershipId;
+        if (profile == null || membershipId == null) {
+          throw Exception('Profil membre introuvable');
+        }
+        await widget.repository.createMemberBooking(
+          stationId: widget.station.id,
+          startAt: interval.start,
+          endAt: interval.end,
+          metadata: _buildMemberMetadata(profile, membershipId),
+        );
       } else {
         await widget.repository.createOwnerBlock(
           stationId: widget.station.id,
@@ -313,7 +351,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Impossible denregistrer le cr\u00e9neau.';
+        _error = _submitErrorText;
       });
     }
   }
@@ -333,7 +371,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Impossible d annuler ce cr\u00e9neau.';
+        _error = _deleteErrorText;
       });
     }
   }
@@ -392,6 +430,24 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     return null;
   }
 
+  Map<String, dynamic> _buildMemberMetadata(Profile profile, String membershipId) {
+    final data = <String, dynamic>{
+      'membership_id': membershipId,
+      'profile_id': profile.id,
+      'profile_name': profile.fullName,
+      'profile_phone': profile.phoneNumber,
+      'vehicle_brand': profile.vehicleBrand,
+      'vehicle_model': profile.vehicleModel,
+      'vehicle_plate': profile.vehiclePlate,
+      'vehicle_plug_type': profile.vehiclePlugType,
+    };
+    data.removeWhere(
+      (_, value) =>
+          value == null || (value is String && value.trim().isEmpty),
+    );
+    return data;
+  }
+
   String get _durationLabel {
     final start = _minutesFromTime(_startTime);
     final end = _minutesFromTime(_endTime);
@@ -426,13 +482,12 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.isEditing;
-    final title = isEditing ? 'Modifier ce cr\u00e9neau' : 'Bloquer un cr\u00e9neau';
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFB347),
+        backgroundColor: _accentColor,
         foregroundColor: Colors.white,
-        title: Text(title),
+        title: Text(_pageTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -483,23 +538,23 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFB347),
+                color: _accentColor,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Dur\u00e9e totale',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: _accentForeground,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     _durationLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _accentForeground,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -527,28 +582,29 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
             FilledButton(
               onPressed: _saving ? null : _saveSlot,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB347),
-                foregroundColor: Colors.black,
+                backgroundColor: _accentColor,
+                foregroundColor: _accentForeground,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: _saving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(_accentForeground),
                       ),
                     )
-                  : Text(isEditing ? 'Enregistrer les modifications' : 'Bloquer ce cr\u00e9neau'),
+                  : Text(_primaryButtonLabel),
             ),
             if (isEditing) ...[
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _saving ? null : _deleteSlot,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFFF6B6B),
-                  side: const BorderSide(color: Color(0xFFFF6B6B)),
+                  foregroundColor: _secondaryButtonColor,
+                  side: BorderSide(color: _secondaryButtonColor),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text('Annuler ce cr\u00e9neau'),

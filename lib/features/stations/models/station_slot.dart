@@ -39,6 +39,7 @@ class StationSlot {
     required this.type,
     this.createdAt,
     this.metadata,
+    this.createdBy,
   });
 
   final String id;
@@ -48,6 +49,7 @@ class StationSlot {
   final StationSlotType type;
   final DateTime? createdAt;
   final Map<String, dynamic>? metadata;
+  final String? createdBy;
 
   Duration get duration => endAt.difference(startAt);
 
@@ -72,9 +74,10 @@ class StationSlot {
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
-      metadata: map['metadata'] is Map<String, dynamic>
-          ? (map['metadata'] as Map<String, dynamic>)
+      metadata: map['metadata'] is Map
+          ? Map<String, dynamic>.from(map['metadata'] as Map)
           : null,
+      createdBy: map['created_by'] as String?,
     );
   }
 }

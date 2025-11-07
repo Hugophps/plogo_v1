@@ -15,7 +15,9 @@ class StationSlotsRepository {
   }) async {
     final response = await _client
         .from('station_slots')
-        .select()
+        .select(
+          'id, station_id, start_at, end_at, type, created_at, metadata, created_by',
+        )
         .eq('station_id', stationId)
         .lt('start_at', rangeEnd.toUtc().toIso8601String())
         .gt('end_at', rangeStart.toUtc().toIso8601String())
@@ -46,7 +48,34 @@ class StationSlotsRepository {
           'type': 'owner_block',
           if (userId != null) 'created_by': userId,
         })
-        .select()
+        .select(
+          'id, station_id, start_at, end_at, type, created_at, metadata, created_by',
+        )
+        .single();
+
+    return StationSlot.fromMap(response as Map<String, dynamic>);
+  }
+
+  Future<StationSlot> createMemberBooking({
+    required String stationId,
+    required DateTime startAt,
+    required DateTime endAt,
+    required Map<String, dynamic> metadata,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    final response = await _client
+        .from('station_slots')
+        .insert({
+          'station_id': stationId,
+          'start_at': startAt.toUtc().toIso8601String(),
+          'end_at': endAt.toUtc().toIso8601String(),
+          'type': 'member_booking',
+          'metadata': metadata,
+          if (userId != null) 'created_by': userId,
+        })
+        .select(
+          'id, station_id, start_at, end_at, type, created_at, metadata, created_by',
+        )
         .single();
 
     return StationSlot.fromMap(response as Map<String, dynamic>);
@@ -64,7 +93,9 @@ class StationSlotsRepository {
           'end_at': endAt.toUtc().toIso8601String(),
         })
         .eq('id', slotId)
-        .select()
+        .select(
+          'id, station_id, start_at, end_at, type, created_at, metadata, created_by',
+        )
         .single();
 
     return StationSlot.fromMap(response as Map<String, dynamic>);
