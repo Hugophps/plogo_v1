@@ -9,14 +9,7 @@ class DriverStationRepository {
 
   SupabaseClient get _client => supabase;
 
-  Future<List<DriverStationView>> fetchStationsWithMemberships() async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      throw Exception('Aucun utilisateur connecte');
-    }
-
-    final results = await Future.wait([
-      _client.from('stations').select('''
+  static const _stationSelect = '''
         id,
         owner_id,
         name,
@@ -44,7 +37,16 @@ class DriverStationRepository {
           address_lat,
           address_lng
         )
-      '''),
+      ''';
+
+  Future<List<DriverStationView>> fetchStationsWithMemberships() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Aucun utilisateur connecte');
+    }
+
+    final results = await Future.wait([
+      _client.from('stations').select(_stationSelect),
       _client
           .from('station_memberships')
           .select('id, station_id, status, created_at, approved_at')
@@ -149,5 +151,51 @@ class DriverStationRepository {
           a.station.name.toLowerCase().compareTo(b.station.name.toLowerCase()),
     );
     return approved;
+  }
+
+  Future<DriverStationView?> fetchStationViewById(String stationId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Aucun utilisateur connecte');
+    }
+
+    final results = await Future.wait([
+      _client
+          .from('stations')
+          .select(_stationSelect)
+          .eq('id', stationId)
+          .maybeSingle(),
+      _client
+          .from('station_memberships')
+          .select('id, station_id, status, created_at, approved_at')
+          .eq('station_id', stationId)
+          .eq('profile_id', user.id)
+          .maybeSingle(),
+    ]);
+
+    final stationMap = results[0] as Map<String, dynamic>?;
+    if (stationMap == null) return null;
+
+    final ownerMap = stationMap['owner'] as Map<String, dynamic>?;
+    final normalized = Map<String, dynamic>.from(stationMap)..remove('owner');
+    final station = Station.fromMap(normalized);
+    final owner = DriverStationOwnerSummary(
+      id: ownerMap?['id'] as String? ?? station.ownerId,
+      displayName: (ownerMap?['full_name'] as String?) ?? 'Proprietaire',
+      avatarUrl: ownerMap?['avatar_url'] as String?,
+      addressLat: (ownerMap?['address_lat'] as num?)?.toDouble(),
+      addressLng: (ownerMap?['address_lng'] as num?)?.toDouble(),
+    );
+
+    final membershipMap = results[1] as Map<String, dynamic>?;
+    final membership = membershipMap != null
+        ? DriverStationMembership.fromMap(membershipMap)
+        : null;
+
+    return DriverStationView(
+      station: station,
+      owner: owner,
+      membership: membership,
+    );
   }
 }

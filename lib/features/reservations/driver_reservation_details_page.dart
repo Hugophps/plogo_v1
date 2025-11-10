@@ -3,6 +3,8 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../core/app_timezone.dart';
 import '../profile/models/profile.dart';
+import '../driver_map/driver_station_detail_page.dart';
+import '../driver_map/driver_station_repository.dart';
 import '../stations/driver_station_booking_page.dart';
 import '../stations/models/station.dart';
 import '../stations/models/station_slot.dart';
@@ -27,6 +29,7 @@ class DriverReservationDetailsPage extends StatefulWidget {
 class _DriverReservationDetailsPageState
     extends State<DriverReservationDetailsPage> {
   final _repository = const StationSlotsRepository();
+  final _stationRepository = const DriverStationRepository();
   bool _processing = false;
 
   DriverReservation get _reservation => widget.reservation;
@@ -59,6 +62,7 @@ class _DriverReservationDetailsPageState
               timeRange: '${_formatHour(start)} - ${_formatHour(end)}',
               address: address,
               photoUrl: station.photoUrl,
+              onTap: _openStationDetails,
             ),
             const SizedBox(height: 24),
             _InfoRow(label: 'Date', value: _formatDate(start)),
@@ -184,6 +188,36 @@ class _DriverReservationDetailsPageState
     );
   }
 
+  Future<void> _openStationDetails() async {
+    try {
+      final view = await _stationRepository.fetchStationViewById(
+        _reservation.station.id,
+      );
+      if (!mounted) return;
+      if (view == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Borne introuvable.')));
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DriverStationDetailPage(
+            initialStation: view,
+            repository: _stationRepository,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir la borne pour le moment.'),
+        ),
+      );
+    }
+  }
+
   String _formatAddress(Station station) {
     final parts = [
       station.streetNumber,
@@ -237,6 +271,7 @@ class _StationSummaryCard extends StatelessWidget {
     required this.timeRange,
     required this.address,
     this.photoUrl,
+    this.onTap,
   });
 
   final String title;
@@ -244,10 +279,11 @@ class _StationSummaryCard extends StatelessWidget {
   final String timeRange;
   final String address;
   final String? photoUrl;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -309,6 +345,16 @@ class _StationSummaryCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) {
+      return card;
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: card,
     );
   }
 }
