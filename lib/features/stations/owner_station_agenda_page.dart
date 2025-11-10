@@ -1,12 +1,15 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../core/app_timezone.dart';
 import '../../core/supabase_bootstrap.dart';
+import '../driver_map/driver_station_models.dart';
 import '../profile/models/profile.dart';
 import '../profile/profile_repository.dart';
+import '../reservations/driver_reservation_details_page.dart';
+import '../reservations/driver_reservations_repository.dart';
 import 'driver_station_booking_page.dart';
 import 'member_slot_details_page.dart';
 import 'models/station.dart';
@@ -56,12 +59,14 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   bool get _isOwnerViewer => widget.viewer == StationAgendaViewer.owner;
   bool get _hasMemberContext =>
       widget.viewerProfile != null && widget.membershipId != null;
+  bool get _isMemberViewer =>
+      widget.viewer == StationAgendaViewer.member && _hasMemberContext;
   Color get _accentColor =>
       _isOwnerViewer ? const Color(0xFFFFB347) : const Color(0xFF2C75FF);
-  Color get _accentForeground =>
-      _isOwnerViewer ? Colors.black : Colors.white;
-  String get _primaryButtonLabel =>
-      _isOwnerViewer ? 'Bloquer un cr\u00e9neau' : 'R\u00e9server un cr\u00e9neau';
+  Color get _accentForeground => _isOwnerViewer ? Colors.black : Colors.white;
+  String get _primaryButtonLabel => _isOwnerViewer
+      ? 'Bloquer un cr\u00e9neau'
+      : 'R\u00e9server un cr\u00e9neau';
   String? _currentProfileId;
 
   @override
@@ -77,7 +82,12 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   tz.TZDateTime _startOfWeek(tz.TZDateTime date) {
     final difference = date.weekday - DateTime.monday;
     final monday = date.subtract(Duration(days: difference));
-    return tz.TZDateTime(brusselsLocation, monday.year, monday.month, monday.day);
+    return tz.TZDateTime(
+      brusselsLocation,
+      monday.year,
+      monday.month,
+      monday.day,
+    );
   }
 
   Future<void> _loadSlots() async {
@@ -199,9 +209,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     return (hours * 60) + minutes;
   }
 
-  List<StationAgendaEntry> _rulesToEntries(
-    List<StationRecurringRule> rules,
-  ) {
+  List<StationAgendaEntry> _rulesToEntries(List<StationRecurringRule> rules) {
     final dayMap = <int, tz.TZDateTime>{};
     for (var i = 0; i < 7; i++) {
       final day = _weekStart.add(Duration(days: i));
@@ -297,186 +305,191 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           ),
         ),
         body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(color: Colors.white),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  color: const Color(0xFF2C75FF),
-                  onPressed: _loading ? null : _goToPreviousWeek,
-                ),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${_weekStart.year}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _monthLabel,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  color: const Color(0xFF2C75FF),
-                  onPressed: _loading ? null : _goToNextWeek,
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-          if (_error != null)
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Color(0xFFCC8400),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black87),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _loadSlots,
-                        child: const Text('R\u00e9essayer'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(color: Colors.white),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildWeekHeader(),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    color: const Color(0xFF2C75FF),
+                    onPressed: _loading ? null : _goToPreviousWeek,
+                  ),
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final availableHeight = constraints.maxHeight;
-                        final rowHeight = math.max(availableHeight - 1, 0).toDouble();
-                        final hourHeight = rowHeight / 24;
-                        final gridWidth =
-                            math.max(constraints.maxWidth - _timeColumnWidth, 0);
-                        final columnWidth = gridWidth / 7;
-                        final segments = _buildSegments(entries);
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${_weekStart.year}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _monthLabel,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    color: const Color(0xFF2C75FF),
+                    onPressed: _loading ? null : _goToNextWeek,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+            if (_error != null)
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Color(0xFFCC8400),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _loadSlots,
+                          child: const Text('R\u00e9essayer'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildWeekHeader(),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final availableHeight = constraints.maxHeight;
+                          final rowHeight = math
+                              .max(availableHeight - 1, 0)
+                              .toDouble();
+                          final hourHeight = rowHeight / 24;
+                          final gridWidth = math.max(
+                            constraints.maxWidth - _timeColumnWidth,
+                            0,
+                          );
+                          final columnWidth = gridWidth / 7;
+                          final segments = _buildSegments(entries);
 
-                        return SizedBox(
-                          height: rowHeight,
-                          width: constraints.maxWidth,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(
-                                width: _timeColumnWidth,
-                                child: _buildTimeColumn(hourHeight),
-                              ),
-                              Expanded(
-                                child: Stack(
-                                  children: [
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: _AgendaGridPainter(
-                                          columnCount: 7,
-                                          hourHeight: hourHeight,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_loading)
-                                      const Positioned.fill(
-                                        child: IgnorePointer(
-                                          child: Center(
-                                            child: CircularProgressIndicator(),
+                          return SizedBox(
+                            height: rowHeight,
+                            width: constraints.maxWidth,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  width: _timeColumnWidth,
+                                  child: _buildTimeColumn(hourHeight),
+                                ),
+                                Expanded(
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: _AgendaGridPainter(
+                                            columnCount: 7,
+                                            hourHeight: hourHeight,
                                           ),
                                         ),
                                       ),
-                                    ...segments.map(
-                                      (segment) => _buildEventSegment(
-                                        segment,
-                                        columnWidth,
-                                        hourHeight,
+                                      if (_loading)
+                                        const Positioned.fill(
+                                          child: IgnorePointer(
+                                            child: Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                        ),
+                                      ...segments.map(
+                                        (segment) => _buildEventSegment(
+                                          segment,
+                                          columnWidth,
+                                          hourHeight,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accentColor,
+                        foregroundColor: _accentForeground,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: _isOwnerViewer
+                          ? _openOwnerBlockForm
+                          : (_hasMemberContext ? _openMemberBookingForm : null),
+                      child: Text(
+                        _primaryButtonLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
+                  if (_isOwnerViewer) ...[
+                    const SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: _accentColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.more_horiz),
+                        color: _accentForeground,
+                        onPressed: _openRecurringManagement,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _accentColor,
-                      foregroundColor: _accentForeground,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: _isOwnerViewer
-                        ? _openOwnerBlockForm
-                        : (_hasMemberContext ? _openMemberBookingForm : null),
-                    child: Text(
-                      _primaryButtonLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                if (_isOwnerViewer) ...[
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: _accentColor,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.more_horiz),
-                      color: _accentForeground,
-                      onPressed: _openRecurringManagement,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildTimeColumn(double hourHeight) {
@@ -560,7 +573,10 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
                         children: [
                           Text('${date.day}', style: numberStyle),
                           const SizedBox(height: 4),
-                          Text(_dayLetters[date.weekday - 1], style: letterStyle),
+                          Text(
+                            _dayLetters[date.weekday - 1],
+                            style: letterStyle,
+                          ),
                         ],
                       ),
                     );
@@ -585,7 +601,9 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
         continue;
       }
 
-      currentStart = currentStart.isBefore(_weekStart) ? _weekStart : currentStart;
+      currentStart = currentStart.isBefore(_weekStart)
+          ? _weekStart
+          : currentStart;
       var remainingEnd = end.isAfter(weekEndExclusive) ? weekEndExclusive : end;
 
       while (currentStart.isBefore(remainingEnd)) {
@@ -596,12 +614,20 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           currentStart.day,
         );
         final nextDay = dayStart.add(const Duration(days: 1));
-        final segmentEnd = remainingEnd.isBefore(nextDay) ? remainingEnd : nextDay;
+        final segmentEnd = remainingEnd.isBefore(nextDay)
+            ? remainingEnd
+            : nextDay;
         final dayIndex = dayStart.difference(_weekStart).inDays;
 
         if (dayIndex >= 0 && dayIndex < 7) {
-          final startMinutes = currentStart.difference(dayStart).inMinutes.toDouble();
-          final endMinutes = segmentEnd.difference(dayStart).inMinutes.toDouble();
+          final startMinutes = currentStart
+              .difference(dayStart)
+              .inMinutes
+              .toDouble();
+          final endMinutes = segmentEnd
+              .difference(dayStart)
+              .inMinutes
+              .toDouble();
           segments.add(
             _AgendaSegment(
               dayIndex: dayIndex,
@@ -635,14 +661,18 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
         .toDouble();
     final double left =
         segment.dayIndex * columnWidth + _eventHorizontalPadding;
-    final double width =
-        math.max(columnWidth - (_eventHorizontalPadding * 2), 0);
+    final double width = math.max(
+      columnWidth - (_eventHorizontalPadding * 2),
+      0,
+    );
 
     final slot = segment.slot;
     final isMemberBooking = segment.type == StationSlotType.memberBooking;
     final isOwnerBlock = segment.type == StationSlotType.ownerBlock;
     final isOwnMemberSlot =
-        isMemberBooking && slot?.createdBy != null && slot!.createdBy == _currentProfileId;
+        isMemberBooking &&
+        slot?.createdBy != null &&
+        slot!.createdBy == _currentProfileId;
 
     Color background;
     Color borderColor = Colors.transparent;
@@ -669,8 +699,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
       background = background.withOpacity(0.6);
     }
 
-    final showTimeLabel =
-        (isOwnerBlock || isMemberBooking) && slot != null;
+    final showTimeLabel = (isOwnerBlock || isMemberBooking) && slot != null;
 
     final child = Container(
       decoration: BoxDecoration(
@@ -702,7 +731,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           onTap = () => _openMemberSlotDetails(slot);
         }
       } else if (isMemberBooking && isOwnMemberSlot) {
-        onTap = () => _openMemberBookingForm(slot: slot);
+        onTap = () => _openMemberSlotDetails(slot);
       }
     }
 
@@ -727,6 +756,13 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
     return first.year == second.year &&
         first.month == second.month &&
         first.day == second.day;
+  }
+
+  bool _isSlotForCurrentMember(StationSlot slot) {
+    final membershipId = widget.membershipId;
+    if (membershipId == null) return false;
+    final slotMembershipId = slot.metadata?['membership_id'] as String?;
+    return slotMembershipId == membershipId;
   }
 
   String _shortTime(DateTime? date) {
@@ -794,6 +830,37 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
   }
 
   Future<void> _openMemberSlotDetails(StationSlot slot) async {
+    if (_isMemberViewer && _isSlotForCurrentMember(slot)) {
+      final profile = widget.viewerProfile;
+      final membershipId = widget.membershipId;
+      if (profile == null || membershipId == null) {
+        _showMissingMemberContext();
+        return;
+      }
+      final reservation = DriverReservation(
+        slot: slot,
+        station: _station,
+        membership: DriverStationMembership(
+          id: membershipId,
+          stationId: _station.id,
+          status: DriverStationAccessStatus.approved,
+          createdAt: slot.createdAt ?? slot.startAt,
+          approvedAt: slot.createdAt,
+        ),
+      );
+      final updated = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => DriverReservationDetailsPage(
+            reservation: reservation,
+            profile: profile,
+          ),
+        ),
+      );
+      if (updated == true) {
+        await _loadSlots();
+      }
+      return;
+    }
     final profileId = slot.createdBy;
     if (profileId == null) {
       if (!mounted) return;
@@ -813,16 +880,15 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
       }
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => MemberSlotDetailsPage(
-            slot: slot,
-            profile: profile,
-          ),
+          builder: (_) => MemberSlotDetailsPage(slot: slot, profile: profile),
         ),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d\u2019ouvrir ce cr\u00e9neau.')),
+        const SnackBar(
+          content: Text('Impossible d\u2019ouvrir ce cr\u00e9neau.'),
+        ),
       );
     }
   }
@@ -835,9 +901,7 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
           onSave: (rules) async {
             final updated = await _stationRepository.updateStation(
               _station.id,
-              {
-                'recurring_rules': rules.map((rule) => rule.toMap()).toList(),
-              },
+              {'recurring_rules': rules.map((rule) => rule.toMap()).toList()},
             );
             return updated;
           },
@@ -893,10 +957,7 @@ class _AgendaSegment {
 }
 
 class _AgendaGridPainter extends CustomPainter {
-  _AgendaGridPainter({
-    required this.columnCount,
-    required this.hourHeight,
-  });
+  _AgendaGridPainter({required this.columnCount, required this.hourHeight});
 
   final int columnCount;
   final double hourHeight;
@@ -959,8 +1020,3 @@ const _monthNamesShort = [
 const _dayLetters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const _greyRecurringColor = Color(0xFFD1D6E2);
-
-
-
-
-
