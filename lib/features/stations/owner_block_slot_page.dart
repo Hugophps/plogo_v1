@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -50,21 +50,37 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
   List<String> _startOptions = const [];
   List<String> _endOptions = const [];
 
-  Color get _accentColor => widget.isMemberBooking ? const Color(0xFF2C75FF) : const Color(0xFFFFB347);
-  Color get _accentForeground => widget.isMemberBooking ? Colors.white : Colors.black;
+  Color get _accentColor => widget.isMemberBooking
+      ? const Color(0xFF2C75FF)
+      : const Color(0xFFFFB347);
+  Color get _accentForeground =>
+      widget.isMemberBooking ? Colors.white : Colors.black;
   String get _pageTitle => widget.isMemberBooking
-      ? (widget.isEditing ? 'Modifier ce cr\u00e9neau' : 'Choisir un cr\u00e9neau')
-      : (widget.isEditing ? 'Modifier ce cr\u00e9neau' : 'Bloquer un cr\u00e9neau');
+      ? (widget.isEditing
+            ? 'Modifier ce cr\u00e9neau'
+            : 'Choisir un cr\u00e9neau')
+      : (widget.isEditing
+            ? 'Modifier ce cr\u00e9neau'
+            : 'Bloquer un cr\u00e9neau');
   String get _primaryButtonLabel => widget.isMemberBooking
-      ? (widget.isEditing ? 'Enregistrer les modifications' : 'R\u00e9server ce cr\u00e9neau')
-      : (widget.isEditing ? 'Enregistrer les modifications' : 'Bloquer ce cr\u00e9neau');
+      ? (widget.isEditing
+            ? 'Enregistrer les modifications'
+            : 'R\u00e9server ce cr\u00e9neau')
+      : (widget.isEditing
+            ? 'Enregistrer les modifications'
+            : 'Bloquer ce cr\u00e9neau');
   String get _submitErrorText => widget.isMemberBooking
       ? 'Impossible d\u2019enregistrer la r\u00e9servation.'
       : 'Impossible d\u2019enregistrer le cr\u00e9neau.';
-  String get _deleteErrorText =>
-      widget.isMemberBooking ? 'Impossible d\u2019annuler ce cr\u00e9neau.' : 'Impossible d\u2019annuler ce cr\u00e9neau.';
-  Color get _secondaryButtonColor =>
-      widget.isMemberBooking ? const Color(0xFF2C75FF) : const Color(0xFFFF6B6B);
+  String get _deleteErrorText => widget.isMemberBooking
+      ? 'Impossible d\u2019annuler ce cr\u00e9neau.'
+      : 'Impossible d\u2019annuler ce cr\u00e9neau.';
+  Color get _secondaryButtonColor => widget.isMemberBooking
+      ? const Color(0xFF2C75FF)
+      : const Color(0xFFFF6B6B);
+  bool get _isPastSlot =>
+      widget.slot != null &&
+      !widget.slot!.endAt.toUtc().isAfter(DateTime.now().toUtc());
 
   @override
   void initState() {
@@ -98,10 +114,14 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       initial.day,
     );
     final baseline = initial.isBefore(dayStart) ? dayStart : initial;
-    final roundedMinutes = _roundToQuarter(baseline.hour * 60 + baseline.minute);
+    final roundedMinutes = _roundToQuarter(
+      baseline.hour * 60 + baseline.minute,
+    );
     _selectedDate = dayStart;
     _startTime = _formatMinutes(roundedMinutes.clamp(0, 23 * 60 + 45));
-    _endTime = _formatMinutes((_minutesFromTime(_startTime) + 30).clamp(15, 24 * 60));
+    _endTime = _formatMinutes(
+      (_minutesFromTime(_startTime) + 30).clamp(15, 24 * 60),
+    );
   }
 
   Future<void> _loadDaySlots() async {
@@ -135,30 +155,29 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       _rebuildAvailability();
     }
   }
+
   void _rebuildAvailability() {
     final recurring = _recurringIntervalsForWeekday(_selectedDate.weekday);
     final dayIntervals = _mergeIntervals([
       ...recurring,
-      ..._daySlots
-          .where((slot) => widget.slot?.id != slot.id)
-          .map(
-            (slot) {
-              final startLocal = brusselsFromUtc(slot.startAt.toUtc());
-              final endLocal = brusselsFromUtc(slot.endAt.toUtc());
-              return _DayInterval(
-                startMinutes: _minutesWithinSelectedDay(startLocal),
-                endMinutes: _minutesWithinSelectedDay(endLocal),
-              );
-            },
-          ),
+      ..._daySlots.where((slot) => widget.slot?.id != slot.id).map((slot) {
+        final startLocal = brusselsFromUtc(slot.startAt.toUtc());
+        final endLocal = brusselsFromUtc(slot.endAt.toUtc());
+        return _DayInterval(
+          startMinutes: _minutesWithinSelectedDay(startLocal),
+          endMinutes: _minutesWithinSelectedDay(endLocal),
+        );
+      }),
     ]);
 
     final freeIntervals = _invertIntervals(dayIntervals);
     final options = <String>[];
     for (final interval in freeIntervals) {
-      for (var minute = interval.startMinutes;
-          minute < interval.endMinutes;
-          minute += 15) {
+      for (
+        var minute = interval.startMinutes;
+        minute < interval.endMinutes;
+        minute += 15
+      ) {
         options.add(_formatMinutes(minute));
       }
     }
@@ -182,7 +201,10 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       startValue = startOptions.first;
     }
 
-    final newEndOptions = _buildEndOptionsForStart(startValue, intervals: freeIntervals);
+    final newEndOptions = _buildEndOptionsForStart(
+      startValue,
+      intervals: freeIntervals,
+    );
     var endValue = _endTime;
     if (!newEndOptions.contains(endValue)) {
       endValue = newEndOptions.isNotEmpty ? newEndOptions.first : startValue;
@@ -223,10 +245,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     for (final interval in intervals) {
       if (interval.startMinutes > cursor) {
         result.add(
-          _DayInterval(
-            startMinutes: cursor,
-            endMinutes: interval.startMinutes,
-          ),
+          _DayInterval(startMinutes: cursor, endMinutes: interval.startMinutes),
         );
       }
       cursor = math.max(cursor, interval.endMinutes);
@@ -236,6 +255,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     }
     return result;
   }
+
   List<String> _buildEndOptionsForStart(
     String startValue, {
     List<_DayInterval>? intervals,
@@ -243,13 +263,18 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     final source = intervals ?? _availableIntervals;
     final startMinutes = _minutesFromTime(startValue);
     final interval = source.firstWhere(
-      (element) => startMinutes >= element.startMinutes && startMinutes < element.endMinutes,
-      orElse: () => _DayInterval(startMinutes: startMinutes, endMinutes: startMinutes),
+      (element) =>
+          startMinutes >= element.startMinutes &&
+          startMinutes < element.endMinutes,
+      orElse: () =>
+          _DayInterval(startMinutes: startMinutes, endMinutes: startMinutes),
     );
     final options = <String>[];
-    for (var minute = math.max(startMinutes + 15, interval.startMinutes + 15);
-        minute <= interval.endMinutes;
-        minute += 15) {
+    for (
+      var minute = math.max(startMinutes + 15, interval.startMinutes + 15);
+      minute <= interval.endMinutes;
+      minute += 15
+    ) {
       options.add(_formatMinutes(minute));
     }
     return options;
@@ -308,6 +333,12 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
   }
 
   Future<void> _saveSlot() async {
+    if (_isPastSlot) {
+      setState(() {
+        _error = 'Ce creneau est deja termine. Modification impossible.';
+      });
+      return;
+    }
     final interval = _computeInterval();
     final validation = _validateInterval(interval.start, interval.end);
     if (validation != null) {
@@ -359,6 +390,12 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
   Future<void> _deleteSlot() async {
     final slot = widget.slot;
     if (slot == null) return;
+    if (_isPastSlot) {
+      setState(() {
+        _error = 'Impossible d\'annuler un creneau passe.';
+      });
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -411,7 +448,9 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
 
     final recurring = _recurringIntervalsForWeekday(_selectedDate.weekday);
     for (final interval in recurring) {
-      final ruleStart = _selectedDate.add(Duration(minutes: interval.startMinutes));
+      final ruleStart = _selectedDate.add(
+        Duration(minutes: interval.startMinutes),
+      );
       final ruleEnd = _selectedDate.add(Duration(minutes: interval.endMinutes));
       if (_overlaps(start, end, ruleStart, ruleEnd)) {
         return 'Ce cr\u00e9neau chevauche une indisponibilite recurente.';
@@ -430,7 +469,10 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     return null;
   }
 
-  Map<String, dynamic> _buildMemberMetadata(Profile profile, String membershipId) {
+  Map<String, dynamic> _buildMemberMetadata(
+    Profile profile,
+    String membershipId,
+  ) {
     final data = <String, dynamic>{
       'membership_id': membershipId,
       'profile_id': profile.id,
@@ -442,8 +484,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       'vehicle_plug_type': profile.vehiclePlugType,
     };
     data.removeWhere(
-      (_, value) =>
-          value == null || (value is String && value.trim().isEmpty),
+      (_, value) => value == null || (value is String && value.trim().isEmpty),
     );
     return data;
   }
@@ -578,9 +619,20 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
                   ),
                 ),
               ),
+            if (_isPastSlot)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Ce creneau est deja termine. Les actions sont desactivees.',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             const SizedBox(height: 32),
             FilledButton(
-              onPressed: _saving ? null : _saveSlot,
+              onPressed: _saving || _isPastSlot ? null : _saveSlot,
               style: FilledButton.styleFrom(
                 backgroundColor: _accentColor,
                 foregroundColor: _accentForeground,
@@ -592,8 +644,9 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(_accentForeground),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _accentForeground,
+                        ),
                       ),
                     )
                   : Text(_primaryButtonLabel),
@@ -601,7 +654,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
             if (isEditing) ...[
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: _saving ? null : _deleteSlot,
+                onPressed: _saving || _isPastSlot ? null : _deleteSlot,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _secondaryButtonColor,
                   side: BorderSide(color: _secondaryButtonColor),
@@ -696,10 +749,7 @@ class _StationHeader extends StatelessWidget {
           Expanded(
             child: Text(
               station.name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -724,8 +774,13 @@ class _DateField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black54,
+          ),
+        ),
         const SizedBox(height: 8),
         InkWell(
           onTap: onTap,
@@ -742,11 +797,13 @@ class _DateField extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                const Icon(Icons.calendar_today, size: 18, color: Colors.black54),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 18,
+                  color: Colors.black54,
+                ),
               ],
             ),
           ),
@@ -776,19 +833,29 @@ class _TimeDropdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black54,
+          ),
+        ),
         const SizedBox(height: 8),
         enabled
             ? DropdownButtonFormField<String>(
                 value: value,
                 items: options
-                    .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                    .map(
+                      (item) =>
+                          DropdownMenuItem(value: item, child: Text(item)),
+                    )
                     .toList(),
                 onChanged: onChanged,
                 decoration: InputDecoration(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -807,8 +874,10 @@ class _TimeDropdown extends StatelessWidget {
                 icon: const Icon(Icons.keyboard_arrow_down),
               )
             : Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -862,13 +931,9 @@ const _monthLabels = [
   'd\u00e9cembre',
 ];
 
-final List<String> _timeOptions = List<String>.generate(
-  97,
-  (index) {
-    final minutes = index * 15;
-    final hour = (minutes ~/ 60).toString().padLeft(2, '0');
-    final min = (minutes % 60).toString().padLeft(2, '0');
-    return '$hour:$min';
-  },
-);
-
+final List<String> _timeOptions = List<String>.generate(97, (index) {
+  final minutes = index * 15;
+  final hour = (minutes ~/ 60).toString().padLeft(2, '0');
+  final min = (minutes % 60).toString().padLeft(2, '0');
+  return '$hour:$min';
+});

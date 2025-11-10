@@ -9,12 +9,14 @@ class DriverHomePage extends StatelessWidget {
     required this.onOpenProfile,
     required this.onOpenMap,
     required this.onOpenStationSelection,
+    required this.onOpenReservations,
   });
 
   final Profile profile;
   final VoidCallback onOpenProfile;
   final VoidCallback onOpenMap;
   final VoidCallback onOpenStationSelection;
+  final VoidCallback onOpenReservations;
 
   @override
   Widget build(BuildContext context) {
@@ -133,10 +135,11 @@ class DriverHomePage extends StatelessWidget {
                   children: [
                     _DriverMapPreviewCard(onTap: onOpenMap),
                     const SizedBox(height: 16),
-                    const _DriverSectionCard(
+                    _DriverSectionCard(
                       title: 'Calendrier',
                       description: 'Suivez vos sessions a venir.',
                       icon: Icons.calendar_today,
+                      onTap: onOpenReservations,
                     ),
                   ],
                 ),
@@ -165,59 +168,64 @@ class _DriverSectionCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.icon,
+    this.onTap,
   });
 
   final String title;
   final String description;
   final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            blurRadius: 15,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color.fromRGBO(44, 117, 255, 0.1),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(0, 0, 0, 0.05),
+              blurRadius: 15,
+              offset: Offset(0, 6),
             ),
-            padding: const EdgeInsets.all(12),
-            child: Icon(icon, color: const Color(0xFF2C75FF)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color.fromRGBO(44, 117, 255, 0.1),
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Icon(icon, color: const Color(0xFF2C75FF)),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: const TextStyle(color: Colors.black54, fontSize: 13),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.black26),
-        ],
+            const Icon(Icons.chevron_right, color: Colors.black26),
+          ],
+        ),
       ),
     );
   }

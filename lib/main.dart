@@ -16,6 +16,7 @@ import 'features/landing/landing_page.dart';
 import 'features/profile/models/profile.dart';
 import 'features/profile/profile_page.dart';
 import 'features/profile/profile_repository.dart';
+import 'features/reservations/driver_reservations_page.dart';
 import 'features/stations/models/station.dart';
 import 'features/stations/station_form_page.dart';
 import 'features/stations/station_repository.dart';
@@ -37,10 +38,7 @@ class MyApp extends StatelessWidget {
       title: 'Plogo',
       debugShowCheckedModeBanner: false,
       locale: const Locale('fr'),
-      supportedLocales: const [
-        Locale('fr'),
-        Locale('en'),
-      ],
+      supportedLocales: const [Locale('fr'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -237,6 +235,17 @@ class _AuthGateState extends State<AuthGate> {
     }
   }
 
+  Future<void> _openDriverReservations(BuildContext context) async {
+    final profile = _profile;
+    if (profile == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DriverReservationsPage(profile: profile),
+      ),
+    );
+    await _refreshProfile();
+  }
+
   Future<void> _openProfilePage(BuildContext context) async {
     final current = _profile;
     if (current == null) return;
@@ -368,6 +377,7 @@ class _AuthGateState extends State<AuthGate> {
           onOpenProfile: () => _openProfilePage(context),
           onOpenMap: () => _openDriverMap(context),
           onOpenStationSelection: () => _openDriverStationSelection(context),
+          onOpenReservations: () => _openDriverReservations(context),
         );
     }
   }
