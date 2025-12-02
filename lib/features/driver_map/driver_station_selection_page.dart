@@ -145,9 +145,11 @@ class _DriverStationSelectionPageState
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (station.model.isNotEmpty)
+                if (station.chargerModel.isNotEmpty)
                   Text(
-                    station.model,
+                    station.chargerBrand.isNotEmpty
+                        ? '${station.chargerBrand} · ${station.chargerModel}'
+                        : station.chargerModel,
                     style: const TextStyle(color: Colors.black87),
                   ),
                 Text(

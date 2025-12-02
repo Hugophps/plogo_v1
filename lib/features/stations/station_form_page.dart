@@ -9,6 +9,7 @@ import '../../core/supabase_bootstrap.dart';
 import '../location/google_place_models.dart';
 import '../location/widgets/google_address_field.dart';
 import '../profile/models/profile.dart';
+import 'data/enode_charger_catalog.dart';
 import 'models/station.dart';
 
 typedef StationSubmission =
@@ -34,14 +35,50 @@ class StationFormPage extends StatefulWidget {
   State<StationFormPage> createState() => _StationFormPageState();
 }
 
+class _ChargerOptionTile extends StatelessWidget {
+  const _ChargerOptionTile({required this.option});
+
+  final EnodeChargerModel option;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: option.brandColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            option.brandLabel,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2933),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            option.model,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StationFormPageState extends State<StationFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
-  late final TextEditingController _brandController;
-  late final TextEditingController _modelController;
   late final TextEditingController _whatsappController;
   late final TextEditingController _infoController;
+  late List<EnodeChargerModel> _chargerOptions;
+  String? _selectedChargerId;
 
   bool _sameAddress = true;
   bool _saving = false;
@@ -56,9 +93,9 @@ class _StationFormPageState extends State<StationFormPage> {
     final station = widget.initialStation;
     _sameAddress = station?.useProfileAddress ?? true;
 
+    _chargerOptions = List<EnodeChargerModel>.from(enodeChargerCatalog);
+
     _nameController = TextEditingController(text: station?.name ?? '');
-    _brandController = TextEditingController(text: station?.brand ?? '');
-    _modelController = TextEditingController(text: station?.model ?? '');
     _whatsappController = TextEditingController(
       text: station?.whatsappGroupUrl ?? '',
     );
@@ -80,13 +117,30 @@ class _StationFormPageState extends State<StationFormPage> {
       lng: station?.locationLng,
       components: station?.locationComponents,
     );
+
+    if (station != null) {
+      final matched = _matchStationToCatalog(station);
+      if (matched != null) {
+        _selectedChargerId = matched.optionId;
+      } else {
+        final fallback = EnodeChargerModel(
+          vendor:
+              station.chargerVendor?.isNotEmpty == true
+                  ? station.chargerVendor!
+                  : 'CUSTOM_${station.id}',
+          brandLabel: station.chargerBrand,
+          model: station.chargerModel,
+          brandColor: const Color(0xFFE8EAF6),
+        );
+        _chargerOptions = [fallback, ..._chargerOptions];
+        _selectedChargerId = fallback.optionId;
+      }
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _brandController.dispose();
-    _modelController.dispose();
     _whatsappController.dispose();
     _infoController.dispose();
     super.dispose();
@@ -176,12 +230,41 @@ class _StationFormPageState extends State<StationFormPage> {
     return null;
   }
 
+  EnodeChargerModel? _matchStationToCatalog(Station station) {
+    for (final option in _chargerOptions) {
+      final vendorMatches = station.chargerVendor != null &&
+          station.chargerVendor!.isNotEmpty &&
+          station.chargerVendor!.toUpperCase() == option.vendor.toUpperCase();
+      final brandMatches =
+          station.chargerBrand.toLowerCase() == option.brandLabel.toLowerCase();
+      final modelMatches =
+          station.chargerModel.toLowerCase() == option.model.toLowerCase();
+      if (modelMatches && (vendorMatches || brandMatches)) {
+        return option;
+      }
+    }
+    return null;
+  }
+
+  EnodeChargerModel? _chargerById(String? id) {
+    if (id == null) return null;
+    for (final option in _chargerOptions) {
+      if (option.optionId == id) return option;
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
     setState(() => _saving = true);
     try {
+      final selectedCharger = _chargerById(_selectedChargerId);
+      if (selectedCharger == null) {
+        throw Exception('Selectionnez une borne compatible via la liste.');
+      }
+
       late final GooglePlaceDetails resolvedAddress;
       if (_sameAddress) {
         final profileAddress = _profileAddress;
@@ -249,8 +332,9 @@ class _StationFormPageState extends State<StationFormPage> {
       final whatsappLink = _whatsappController.text.trim();
       final payload = {
         'name': _nameController.text.trim(),
-        'brand': _brandController.text.trim(),
-        'model': _modelController.text.trim(),
+        'charger_brand': selectedCharger.brandLabel,
+        'charger_model': selectedCharger.model,
+        'charger_vendor': selectedCharger.vendor,
         'use_profile_address': _sameAddress,
         'street_name': parsedAddress['street_name'],
         'street_number': parsedAddress['street_number'],
@@ -316,16 +400,31 @@ class _StationFormPageState extends State<StationFormPage> {
                 validator: _validateRequired,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _brandController,
-                decoration: _fieldDecoration('Marque', required: true),
-                validator: _validateRequired,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _modelController,
-                decoration: _fieldDecoration('Type', required: true),
-                validator: _validateRequired,
+              DropdownButtonFormField<String>(
+                value: _selectedChargerId,
+                decoration: _fieldDecoration(
+                  'Votre borne de recharge',
+                  required: true,
+                ),
+                isExpanded: true,
+                hint: const Text('Selectionnez votre borne'),
+                items: _chargerOptions
+                    .map(
+                      (option) => DropdownMenuItem<String>(
+                        value: option.optionId,
+                        child: _ChargerOptionTile(option: option),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() => _selectedChargerId = value);
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Selectionner votre borne est obligatoire';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
               const Text(

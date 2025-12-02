@@ -438,9 +438,9 @@ class _StationSummaryCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      station.brand.isNotEmpty
-                          ? '${station.brand} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${station.model}'
-                          : station.model,
+                      station.chargerBrand.isNotEmpty
+                          ? '${station.chargerBrand} · ${station.chargerModel}'
+                          : station.chargerModel,
                       style: const TextStyle(color: Colors.black54),
                     ),
                   ],

@@ -5,8 +5,9 @@ class Station {
     required this.id,
     required this.ownerId,
     required this.name,
-    required this.brand,
-    required this.model,
+    required this.chargerBrand,
+    required this.chargerModel,
+    this.chargerVendor,
     required this.useProfileAddress,
     required this.streetName,
     required this.streetNumber,
@@ -27,8 +28,9 @@ class Station {
   final String id;
   final String ownerId;
   final String name;
-  final String brand;
-  final String model;
+  final String chargerBrand;
+  final String chargerModel;
+  final String? chargerVendor;
   final bool useProfileAddress;
   final String streetName;
   final String streetNumber;
@@ -47,8 +49,9 @@ class Station {
 
   Station copyWith({
     String? name,
-    String? brand,
-    String? model,
+    String? chargerBrand,
+    String? chargerModel,
+    String? chargerVendor,
     bool? useProfileAddress,
     String? streetName,
     String? streetNumber,
@@ -69,8 +72,9 @@ class Station {
       id: id,
       ownerId: ownerId,
       name: name ?? this.name,
-      brand: brand ?? this.brand,
-      model: model ?? this.model,
+      chargerBrand: chargerBrand ?? this.chargerBrand,
+      chargerModel: chargerModel ?? this.chargerModel,
+      chargerVendor: chargerVendor ?? this.chargerVendor,
       useProfileAddress: useProfileAddress ?? this.useProfileAddress,
       streetName: streetName ?? this.streetName,
       streetNumber: streetNumber ?? this.streetNumber,
@@ -94,8 +98,9 @@ class Station {
       id: map['id'] as String,
       ownerId: map['owner_id'] as String,
       name: map['name'] as String,
-      brand: map['brand'] as String,
-      model: map['model'] as String,
+      chargerBrand: map['charger_brand'] as String,
+      chargerModel: map['charger_model'] as String,
+      chargerVendor: map['charger_vendor'] as String?,
       useProfileAddress: (map['use_profile_address'] as bool?) ?? false,
       streetName: map['street_name'] as String,
       streetNumber: map['street_number'] as String,
