@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/supabase_bootstrap.dart';
+import '../../core/utils/email_redirect.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -33,8 +34,7 @@ class _LandingPageState extends State<LandingPage> {
     try {
       await supabase.auth.signInWithOtp(
         email: email,
-        // Mettre à jour si besoin pour votre environnement de développement.
-        emailRedirectTo: 'http://localhost:3000/',
+        emailRedirectTo: resolveEmailRedirectTo(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(

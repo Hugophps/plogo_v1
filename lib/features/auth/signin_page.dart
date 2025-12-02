@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/supabase_bootstrap.dart';
+import '../../core/utils/email_redirect.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -32,7 +33,7 @@ class _SignInPageState extends State<SignInPage> {
     try {
       await supabase.auth.signInWithOtp(
         email: email,
-        emailRedirectTo: 'http://localhost:3000/',
+        emailRedirectTo: resolveEmailRedirectTo(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(
