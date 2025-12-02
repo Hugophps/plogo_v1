@@ -1,0 +1,6 @@
+# Build Netlify configuré pour lancer Flutter côté serveur Netlify.
+# `publish` pointe vers le dossier `build/web` généré par Flutter.
+
+[build]
+  command = "bash netlify_build.sh"
+  publish = "build/web"
