@@ -6,6 +6,21 @@
 
 set -euo pipefail
 
+require_env() {
+  local name=$1
+  local value=${!name:-}
+  if [[ -z "$value" ]]; then
+    echo "[Netlify] Erreur: la variable d'environnement $name doit être définie." >&2
+    exit 1
+  fi
+}
+
+require_env SUPABASE_URL
+require_env SUPABASE_ANON_KEY
+
+SUPABASE_REDIRECT_URL=${SUPABASE_REDIRECT_URL:-}
+GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+
 ROOT_DIR="$(pwd)"
 FLUTTER_SDK_DIR="${ROOT_DIR}/flutter_sdk"
 
@@ -25,7 +40,21 @@ echo "[Netlify] Récupération des dépendances..."
 flutter pub get
 
 echo "[Netlify] Build Flutter Web (release)..."
-flutter build web --release
+
+BUILD_ARGS=(
+  "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
+  "--dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"
+)
+
+if [[ -n "$SUPABASE_REDIRECT_URL" ]]; then
+  BUILD_ARGS+=("--dart-define=SUPABASE_REDIRECT_URL=${SUPABASE_REDIRECT_URL}")
+fi
+
+if [[ -n "$GOOGLE_MAPS_API_KEY" ]]; then
+  BUILD_ARGS+=("--dart-define=GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}")
+fi
+
+flutter build web --release "${BUILD_ARGS[@]}"
 
 REDIRECTS_FILE="${ROOT_DIR}/build/web/_redirects"
 REQUIRED_REDIRECT='/*  /index.html  200'
