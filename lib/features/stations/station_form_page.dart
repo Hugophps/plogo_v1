@@ -92,7 +92,6 @@ class _StationFormPageState extends State<StationFormPage> {
     super.initState();
     final station = widget.initialStation;
     _sameAddress = station?.useProfileAddress ?? true;
-
     _chargerOptions = List<EnodeChargerModel>.from(enodeChargerCatalog);
 
     _nameController = TextEditingController(text: station?.name ?? '');
@@ -117,21 +116,12 @@ class _StationFormPageState extends State<StationFormPage> {
       lng: station?.locationLng,
       components: station?.locationComponents,
     );
-
     if (station != null) {
       final matched = _matchStationToCatalog(station);
       if (matched != null) {
         _selectedChargerId = matched.optionId;
       } else {
-        final fallback = EnodeChargerModel(
-          vendor:
-              station.chargerVendor?.isNotEmpty == true
-                  ? station.chargerVendor!
-                  : 'CUSTOM_${station.id}',
-          brandLabel: station.chargerBrand,
-          model: station.chargerModel,
-          brandColor: const Color(0xFFE8EAF6),
-        );
+        final fallback = _fallbackOptionFromStation(station);
         _chargerOptions = [fallback, ..._chargerOptions];
         _selectedChargerId = fallback.optionId;
       }
@@ -252,6 +242,18 @@ class _StationFormPageState extends State<StationFormPage> {
       if (option.optionId == id) return option;
     }
     return null;
+  }
+
+  EnodeChargerModel _fallbackOptionFromStation(Station station) {
+    return EnodeChargerModel(
+      vendor: (station.chargerVendor?.isNotEmpty == true
+              ? station.chargerVendor!
+              : 'AUTRE')
+          .toUpperCase(),
+      brandLabel: station.chargerBrand,
+      model: station.chargerModel,
+      brandColor: const Color(0xFFE6E9F5),
+    );
   }
 
   Future<void> _submit() async {

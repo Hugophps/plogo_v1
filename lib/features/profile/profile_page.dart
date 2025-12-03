@@ -82,8 +82,8 @@ class _ProfilePageState extends State<ProfilePage> {
         builder: (_) => ProfileLegalPage(
           title: isPrivacy ? 'Confidentialités' : 'CGU',
           heading: isPrivacy
-              ? 'Politique de confidentialités'
-              : "Conditions Gérales d'Utilisation",
+              ? "Politique de confidentialités"
+              : "Conditions Générales d'Utilisation",
           body: _legalPlaceholder,
         ),
       ),

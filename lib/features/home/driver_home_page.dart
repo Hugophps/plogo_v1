@@ -99,7 +99,7 @@ class DriverHomePage extends StatelessWidget {
                       ),
                       child: Text(
                         profile.nextSessionStatus ??
-                            'Statut: aucune session planifiee',
+                            "Statut: aucune session planifiée",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -112,7 +112,7 @@ class DriverHomePage extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: onOpenStationSelection,
                         icon: const Icon(Icons.flash_on_outlined),
-                        label: const Text('Reserver une session de charge'),
+                        label: const Text("Réserver une session de charge"),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           foregroundColor: const Color(0xFF2C75FF),
@@ -137,7 +137,7 @@ class DriverHomePage extends StatelessWidget {
                     const SizedBox(height: 16),
                     _DriverSectionCard(
                       title: 'Calendrier',
-                      description: 'Suivez vos sessions a venir.',
+                      description: "Suivez vos sessions à venir.",
                       icon: Icons.calendar_today,
                       onTap: onOpenReservations,
                     ),
