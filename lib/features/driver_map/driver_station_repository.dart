@@ -16,6 +16,7 @@ class DriverStationRepository {
         charger_brand,
         charger_model,
         charger_vendor,
+        price_per_kwh,
         use_profile_address,
         street_name,
         street_number,
