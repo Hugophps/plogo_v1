@@ -75,6 +75,7 @@ class _StationFormPageState extends State<StationFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
+  late final TextEditingController _priceController;
   late final TextEditingController _whatsappController;
   late final TextEditingController _infoController;
   late List<EnodeChargerModel> _chargerOptions;
@@ -95,6 +96,11 @@ class _StationFormPageState extends State<StationFormPage> {
     _chargerOptions = List<EnodeChargerModel>.from(enodeChargerCatalog);
 
     _nameController = TextEditingController(text: station?.name ?? '');
+    _priceController = TextEditingController(
+      text: station?.pricePerKwh != null
+          ? _formatPriceValue(station!.pricePerKwh!)
+          : '',
+    );
     _whatsappController = TextEditingController(
       text: station?.whatsappGroupUrl ?? '',
     );
@@ -131,6 +137,7 @@ class _StationFormPageState extends State<StationFormPage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _priceController.dispose();
     _whatsappController.dispose();
     _infoController.dispose();
     super.dispose();
@@ -216,6 +223,26 @@ class _StationFormPageState extends State<StationFormPage> {
     final parsed = Uri.tryParse(link);
     if (parsed == null || !parsed.hasScheme || !parsed.hasAuthority) {
       return 'Lien WhatsApp invalide';
+    }
+    return null;
+  }
+
+  String _formatPriceValue(double value) {
+    final isInt = value.truncateToDouble() == value;
+    return isInt ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+  }
+
+  String? _validatePrice(String? value) {
+    final input = value?.trim() ?? '';
+    if (input.isEmpty) {
+      return 'Indiquez le prix du kWh';
+    }
+    final parsed = double.tryParse(input.replaceAll(',', '.'));
+    if (parsed == null) {
+      return 'Format invalide';
+    }
+    if (parsed <= 0) {
+      return 'Le prix doit etre positif';
     }
     return null;
   }
@@ -332,11 +359,17 @@ class _StationFormPageState extends State<StationFormPage> {
 
       final info = _infoController.text.trim();
       final whatsappLink = _whatsappController.text.trim();
+      final priceInput = _priceController.text.trim().replaceAll(',', '.');
+      final pricePerKwh = double.tryParse(priceInput);
+      if (pricePerKwh == null || pricePerKwh <= 0) {
+        throw Exception('Le prix du kWh est invalide.');
+      }
       final payload = {
         'name': _nameController.text.trim(),
         'charger_brand': selectedCharger.brandLabel,
         'charger_model': selectedCharger.model,
         'charger_vendor': selectedCharger.vendor,
+        'price_per_kwh': pricePerKwh,
         'use_profile_address': _sameAddress,
         'street_name': parsedAddress['street_name'],
         'street_number': parsedAddress['street_number'],
@@ -400,6 +433,17 @@ class _StationFormPageState extends State<StationFormPage> {
                   required: true,
                 ),
                 validator: _validateRequired,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _priceController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: _fieldDecoration(
+                  'Prix du kWh',
+                  required: true,
+                ).copyWith(suffixText: '€/kWh'),
+                validator: _validatePrice,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(

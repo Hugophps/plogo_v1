@@ -459,7 +459,7 @@ class _MembersOverviewCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: onOpenManagement,
-                  child: const Text('GÃƒÆ’Ã‚Â©rer les membres'),
+                  child: const Text("Gérer les membres"),
                 ),
               ],
             ),
@@ -514,7 +514,7 @@ class _MembersPlaceholderCard extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Publiez votre borne pour inviter des conducteurs et gÃƒÆ’Ã‚Â©rer leurs demandes depuis cette section.',
+            "Publiez votre borne pour inviter des conducteurs et gérer leurs demandes depuis cette section.",
             style: TextStyle(color: Colors.black54, height: 1.4),
           ),
         ],
@@ -618,6 +618,16 @@ class _StationSection extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     station!.chargerLabel!,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                if (station!.priceLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    station!.priceLabel!,
                     style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w500,

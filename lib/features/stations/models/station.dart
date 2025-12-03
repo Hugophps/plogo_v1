@@ -8,6 +8,7 @@ class Station {
     required this.chargerBrand,
     required this.chargerModel,
     this.chargerVendor,
+    this.pricePerKwh,
     required this.useProfileAddress,
     required this.streetName,
     required this.streetNumber,
@@ -31,6 +32,7 @@ class Station {
   final String chargerBrand;
   final String chargerModel;
   final String? chargerVendor;
+  final double? pricePerKwh;
   final bool useProfileAddress;
   final String streetName;
   final String streetNumber;
@@ -52,6 +54,7 @@ class Station {
     String? chargerBrand,
     String? chargerModel,
     String? chargerVendor,
+    double? pricePerKwh,
     bool? useProfileAddress,
     String? streetName,
     String? streetNumber,
@@ -75,6 +78,7 @@ class Station {
       chargerBrand: chargerBrand ?? this.chargerBrand,
       chargerModel: chargerModel ?? this.chargerModel,
       chargerVendor: chargerVendor ?? this.chargerVendor,
+      pricePerKwh: pricePerKwh ?? this.pricePerKwh,
       useProfileAddress: useProfileAddress ?? this.useProfileAddress,
       streetName: streetName ?? this.streetName,
       streetNumber: streetNumber ?? this.streetNumber,
@@ -101,6 +105,7 @@ class Station {
       chargerBrand: map['charger_brand'] as String,
       chargerModel: map['charger_model'] as String,
       chargerVendor: map['charger_vendor'] as String?,
+      pricePerKwh: (map['price_per_kwh'] as num?)?.toDouble(),
       useProfileAddress: (map['use_profile_address'] as bool?) ?? false,
       streetName: map['street_name'] as String,
       streetNumber: map['street_number'] as String,
@@ -144,5 +149,15 @@ extension StationChargerLabel on Station {
     if (!hasBrand) return model;
     if (!hasModel) return brand;
     return '$brand · $model';
+  }
+}
+
+extension StationPricing on Station {
+  String? get priceLabel {
+    final value = pricePerKwh;
+    if (value == null) return null;
+    final bool isInt = value == value.roundToDouble();
+    final text = isInt ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+    return '$text €/kWh';
   }
 }

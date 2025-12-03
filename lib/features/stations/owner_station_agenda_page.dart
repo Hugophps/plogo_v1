@@ -985,6 +985,16 @@ class _OwnerStationHeader extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (station.priceLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    station.priceLabel!,
+                    style: const TextStyle(
+                      color: Color(0xFF2C75FF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Text(
                   address,

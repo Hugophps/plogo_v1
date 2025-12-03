@@ -120,6 +120,7 @@ class _DriverStationSelectionPageState
         final address =
             station.locationFormatted ?? _addressFromStation(station);
         final chargerLabel = station.chargerLabel;
+        final priceLabel = station.priceLabel;
         return Card(
           elevation: 0,
           color: Colors.white,
@@ -150,6 +151,11 @@ class _DriverStationSelectionPageState
                   Text(
                     chargerLabel,
                     style: const TextStyle(color: Colors.black87),
+                  ),
+                if (priceLabel != null)
+                  Text(
+                    priceLabel,
+                    style: const TextStyle(color: Color(0xFF2C75FF)),
                   ),
                 Text(
                   address,

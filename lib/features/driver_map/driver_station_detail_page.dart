@@ -442,6 +442,17 @@ class _StationSummaryCard extends StatelessWidget {
                         station.chargerLabel!,
                         style: const TextStyle(color: Colors.black54),
                       ),
+                    if (station.priceLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          station.priceLabel!,
+                          style: const TextStyle(
+                            color: Color(0xFF2C75FF),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
