@@ -7,7 +7,7 @@ Important: toujours lire et respecter `CONTEXT.md` avant toute modification. L�
 ## Démarrer
 
 1) Installer Flutter stable et configurer le canal web: `flutter config --enable-web`.
-2) Renseigner les secrets via `--dart-define` ou configuration IDE (pas de secrets dans le code).
+2) Renseigner les secrets via `--dart-define` ou configuration IDE (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_MAPS_API_KEY` pour la carte web; aucun secret dans le code). La fonction Supabase `google-places` attend la clé `GOOGLE_PLACES_API_KEY` dans `supabase/.env` ou via `supabase secrets`.
 3) Lancer en mode web: `flutter run -d chrome`.
 
 ## Lignes directrices clés
