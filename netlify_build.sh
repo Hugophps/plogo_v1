@@ -17,9 +17,10 @@ require_env() {
 
 require_env SUPABASE_URL
 require_env SUPABASE_ANON_KEY
+require_env GOOGLE_MAPS_API_KEY
 
 SUPABASE_REDIRECT_URL=${SUPABASE_REDIRECT_URL:-}
-GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
 
 ROOT_DIR="$(pwd)"
 FLUTTER_SDK_DIR="${ROOT_DIR}/flutter_sdk"
@@ -50,9 +51,7 @@ if [[ -n "$SUPABASE_REDIRECT_URL" ]]; then
   BUILD_ARGS+=("--dart-define=SUPABASE_REDIRECT_URL=${SUPABASE_REDIRECT_URL}")
 fi
 
-if [[ -n "$GOOGLE_MAPS_API_KEY" ]]; then
-  BUILD_ARGS+=("--dart-define=GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}")
-fi
+BUILD_ARGS+=("--dart-define=GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}")
 
 flutter build web --release "${BUILD_ARGS[@]}"
 

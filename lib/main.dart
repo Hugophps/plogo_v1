@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/app_timezone.dart';
+import 'core/google_maps_loader/google_maps_loader.dart';
 import 'core/supabase_bootstrap.dart';
+import 'env.dart';
 import 'features/account/account_completion_page.dart';
 import 'features/account/role_selection_page.dart';
 import 'features/driver_map/driver_map_page.dart';
@@ -25,6 +28,19 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initAppTimezone();
   await initSupabase();
+  if (kIsWeb) {
+    if (Env.googleMapsApiKey.isEmpty) {
+      debugPrint(
+        'GOOGLE_MAPS_API_KEY manquante: la carte Google ne pourra pas se charger sur le web.',
+      );
+    } else {
+      try {
+        await ensureGoogleMapsLoaded(Env.googleMapsApiKey);
+      } catch (error) {
+        debugPrint('Erreur de chargement du SDK Google Maps: $error');
+      }
+    }
+  }
   runApp(const MyApp());
 }
 
