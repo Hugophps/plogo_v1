@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../profile/models/profile.dart';
 import 'models/station_member.dart';
 import 'station_members_repository.dart';
 
@@ -221,6 +222,8 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.black54),
                         ),
+                      const SizedBox(height: 16),
+                      _VehicleCard(profile: profile),
                       const SizedBox(height: 24),
                       if ((profile.description ?? '').isNotEmpty)
                         Container(
@@ -383,6 +386,76 @@ class _StatusChip extends StatelessWidget {
         label,
         style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
       ),
+    );
+  }
+}
+
+class _VehicleCard extends StatelessWidget {
+  const _VehicleCard({required this.profile});
+
+  final Profile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E3EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Détails du véhicule',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _VehicleInfoRow(
+            label: 'Marque',
+            value: profile.vehicleBrand,
+          ),
+          const SizedBox(height: 8),
+          _VehicleInfoRow(
+            label: 'Mod\u00e8le',
+            value: profile.vehicleModel,
+          ),
+          const SizedBox(height: 8),
+          _VehicleInfoRow(
+            label: 'Plaque',
+            value: profile.vehiclePlate,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VehicleInfoRow extends StatelessWidget {
+  const _VehicleInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(value?.isNotEmpty == true ? value! : 'Non renseigné'),
+      ],
     );
   }
 }

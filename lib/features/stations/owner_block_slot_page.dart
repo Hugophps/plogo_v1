@@ -481,7 +481,6 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       'vehicle_brand': profile.vehicleBrand,
       'vehicle_model': profile.vehicleModel,
       'vehicle_plate': profile.vehiclePlate,
-      'vehicle_plug_type': profile.vehiclePlugType,
     };
     data.removeWhere(
       (_, value) => value == null || (value is String && value.trim().isEmpty),

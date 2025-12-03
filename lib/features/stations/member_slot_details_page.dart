@@ -58,8 +58,6 @@ class MemberSlotDetailsPage extends StatelessWidget {
             _InfoRow(label: 'Mod\u00e8le', value: profile.vehicleModel ?? 'Non renseign\u00e9'),
             const SizedBox(height: 8),
             _InfoRow(label: 'Plaque', value: profile.vehiclePlate ?? 'Non renseign\u00e9'),
-            const SizedBox(height: 8),
-            _InfoRow(label: 'Type de prise', value: profile.vehiclePlugType ?? 'Non renseign\u00e9'),
             const SizedBox(height: 32),
             _WhatsappButton(phoneNumber: profile.phoneNumber),
           ],

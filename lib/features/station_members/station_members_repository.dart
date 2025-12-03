@@ -27,7 +27,6 @@ const _memberSelect = '''
               vehicle_brand,
               vehicle_model,
               vehicle_plate,
-              vehicle_plug_type,
               profile_completed
             )
           ''';

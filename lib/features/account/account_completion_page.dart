@@ -36,7 +36,6 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
   late final TextEditingController _vehicleBrandController;
   late final TextEditingController _vehicleModelController;
   late final TextEditingController _vehiclePlateController;
-  late final TextEditingController _vehiclePlugController;
 
   Uint8List? _avatarBytes;
   String? _remoteAvatarUrl;
@@ -62,9 +61,6 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
     _vehiclePlateController = TextEditingController(
       text: profile?.vehiclePlate ?? '',
     );
-    _vehiclePlugController = TextEditingController(
-      text: profile?.vehiclePlugType ?? '',
-    );
     _remoteAvatarUrl = profile?.avatarUrl;
     _selectedAddress = GooglePlaceDetails.fromStoredData(
       placeId: profile?.addressPlaceId,
@@ -87,7 +83,6 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
     _vehicleBrandController.dispose();
     _vehicleModelController.dispose();
     _vehiclePlateController.dispose();
-    _vehiclePlugController.dispose();
     super.dispose();
   }
 
@@ -207,7 +202,6 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
         'vehicle_brand': _vehicleBrandController.text.trim(),
         'vehicle_model': _vehicleModelController.text.trim(),
         'vehicle_plate': _vehiclePlateController.text.trim(),
-        'vehicle_plug_type': _vehiclePlugController.text.trim(),
         'avatar_url': avatarUrl,
         'profile_completed': true,
         ...addressData,
@@ -327,26 +321,23 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                       _buildSection('Votre véhicule électrique principal', [
                         TextFormField(
                           controller: _vehicleBrandController,
-                          decoration: _fieldDecoration('Marque'),
+                          decoration: _fieldDecoration('Marque', required: true),
+                          validator: _validateRequired,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _vehicleModelController,
-                          decoration: _fieldDecoration('Modèle'),
+                          decoration: _fieldDecoration('Modèle', required: true),
+                          validator: _validateRequired,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _vehiclePlateController,
                           decoration: _fieldDecoration(
                             "Plaque d'immatriculation",
+                            required: true,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _vehiclePlugController,
-                          decoration: _fieldDecoration(
-                            'Type de prise de charge',
-                          ),
+                          validator: _validateRequired,
                         ),
                       ]),
                       const SizedBox(height: 24),

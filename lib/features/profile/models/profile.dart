@@ -17,7 +17,6 @@ class Profile {
     this.vehicleBrand,
     this.vehicleModel,
     this.vehiclePlate,
-    this.vehiclePlugType,
     required this.isCompleted,
     this.addressPlaceId,
     this.addressLat,
@@ -43,7 +42,6 @@ class Profile {
   final String? vehicleBrand;
   final String? vehicleModel;
   final String? vehiclePlate;
-  final String? vehiclePlugType;
   final bool isCompleted;
   final String? addressPlaceId;
   final double? addressLat;
@@ -77,7 +75,6 @@ class Profile {
     String? vehicleBrand,
     String? vehicleModel,
     String? vehiclePlate,
-    String? vehiclePlugType,
     bool? isCompleted,
     String? addressPlaceId,
     double? addressLat,
@@ -103,7 +100,6 @@ class Profile {
       vehicleBrand: vehicleBrand ?? this.vehicleBrand,
       vehicleModel: vehicleModel ?? this.vehicleModel,
       vehiclePlate: vehiclePlate ?? this.vehiclePlate,
-      vehiclePlugType: vehiclePlugType ?? this.vehiclePlugType,
       isCompleted: isCompleted ?? this.isCompleted,
       addressPlaceId: addressPlaceId ?? this.addressPlaceId,
       addressLat: addressLat ?? this.addressLat,
@@ -132,7 +128,6 @@ class Profile {
       vehicleBrand: map['vehicle_brand'] as String?,
       vehicleModel: map['vehicle_model'] as String?,
       vehiclePlate: map['vehicle_plate'] as String?,
-      vehiclePlugType: map['vehicle_plug_type'] as String?,
       isCompleted: (map['profile_completed'] as bool?) ?? false,
       addressPlaceId: map['address_place_id'] as String?,
       addressLat: (map['address_lat'] as num?)?.toDouble(),

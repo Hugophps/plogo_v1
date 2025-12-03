@@ -343,6 +343,7 @@ class _MemberListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = member.profile;
+    final vehicleInfo = _vehicleSummary();
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Colors.white,
@@ -384,6 +385,11 @@ class _MemberListTile extends StatelessWidget {
                   if ((profile.country ?? '').isNotEmpty) profile.country,
                 ].whereType<String>().join(', '),
               ),
+            if (vehicleInfo != null)
+              Text(
+                vehicleInfo,
+                style: const TextStyle(color: Colors.black87),
+              ),
             if (showStatus)
               Container(
                 margin: const EdgeInsets.only(top: 6),
@@ -417,5 +423,18 @@ class _MemberListTile extends StatelessWidget {
     if (first.isNotEmpty) buffer.write(first[0]);
     if (last.isNotEmpty) buffer.write(last[0]);
     return buffer.isEmpty ? 'M' : buffer.toString().toUpperCase();
+  }
+
+  String? _vehicleSummary() {
+    final profile = member.profile;
+    final brand = profile.vehicleBrand?.trim() ?? '';
+    final model = profile.vehicleModel?.trim() ?? '';
+    final plate = profile.vehiclePlate?.trim() ?? '';
+    final parts = <String>[];
+    final car = [brand, model].where((v) => v.isNotEmpty).join(' ');
+    if (car.isNotEmpty) parts.add(car);
+    if (plate.isNotEmpty) parts.add(plate);
+    if (parts.isEmpty) return null;
+    return parts.join(' · ');
   }
 }
