@@ -437,12 +437,11 @@ class _StationSummaryCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    Text(
-                      station.chargerBrand.isNotEmpty
-                          ? '${station.chargerBrand} · ${station.chargerModel}'
-                          : station.chargerModel,
-                      style: const TextStyle(color: Colors.black54),
-                    ),
+                    if (station.chargerLabel != null)
+                      Text(
+                        station.chargerLabel!,
+                        style: const TextStyle(color: Colors.black54),
+                      ),
                   ],
                 ),
               ),

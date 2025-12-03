@@ -614,7 +614,17 @@ class _StationSection extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                if (station!.chargerLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    station!.chargerLabel!,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,

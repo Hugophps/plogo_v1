@@ -113,7 +113,7 @@ class _DriverReservationsPageState extends State<DriverReservationsPage> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _openStationSelection,
-                  child: const Text('Reserver un autre creneau'),
+                  child: const Text("Réserver un autre créneau"),
                 ),
               ),
             ),
@@ -131,8 +131,8 @@ class _DriverReservationsPageState extends State<DriverReservationsPage> {
     if (_error != null) {
       return _StateMessage(
         message:
-            'Impossible de charger vos reservations. Verifiez votre connexion puis reessayez.',
-        buttonLabel: 'Reessayer',
+            "Impossible de charger vos réservations. Vérifiez votre connexion puis réessayez.",
+        buttonLabel: "Réessayer",
         onTap: _loadReservations,
       );
     }
@@ -142,8 +142,8 @@ class _DriverReservationsPageState extends State<DriverReservationsPage> {
     if (!hasAnyReservation) {
       return _StateMessage(
         message:
-            'Vous n\'avez pas encore de creneau de recharge planifie. Ajoutez-en un pour remplir votre agenda.',
-        buttonLabel: 'Reserver un creneau',
+            "Vous n'avez pas encore de créneau de recharge planifié. Ajoutez-en un pour remplir votre agenda.",
+        buttonLabel: "Réserver un créneau",
         onTap: _openStationSelection,
       );
     }
@@ -159,7 +159,7 @@ class _DriverReservationsPageState extends State<DriverReservationsPage> {
             segments: const [
               ButtonSegment(
                 value: DriverReservationFilter.upcoming,
-                label: Text('A venir'),
+                label: Text("À venir"),
                 icon: Icon(Icons.event_available_outlined),
               ),
               ButtonSegment(
@@ -187,8 +187,8 @@ class _DriverReservationsPageState extends State<DriverReservationsPage> {
                         padding: const EdgeInsets.only(top: 60),
                         child: _StateMessage(
                           message: _filter == DriverReservationFilter.upcoming
-                              ? 'Aucun creneau a venir. Pensez a reserver votre prochaine recharge.'
-                              : 'Pas encore d\'historique. Vos anciens creneaux apparaitront ici.',
+                              ? "Aucun créneau à venir. Pensez à réserver votre prochaine recharge."
+                              : "Pas encore d'historique. Vos anciens créneaux apparaitront ici.",
                           buttonLabel: 'Actualiser',
                           onTap: _loadReservations,
                         ),

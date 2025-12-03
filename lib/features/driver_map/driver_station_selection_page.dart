@@ -119,6 +119,7 @@ class _DriverStationSelectionPageState
         final station = view.station;
         final address =
             station.locationFormatted ?? _addressFromStation(station);
+        final chargerLabel = station.chargerLabel;
         return Card(
           elevation: 0,
           color: Colors.white,
@@ -145,11 +146,9 @@ class _DriverStationSelectionPageState
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (station.chargerModel.isNotEmpty)
+                if (chargerLabel != null)
                   Text(
-                    station.chargerBrand.isNotEmpty
-                        ? '${station.chargerBrand} · ${station.chargerModel}'
-                        : station.chargerModel,
+                    chargerLabel,
                     style: const TextStyle(color: Colors.black87),
                   ),
                 Text(

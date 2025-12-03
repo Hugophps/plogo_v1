@@ -133,3 +133,16 @@ class Station {
     return rules;
   }
 }
+
+extension StationChargerLabel on Station {
+  String? get chargerLabel {
+    final brand = chargerBrand.trim();
+    final model = chargerModel.trim();
+    final hasBrand = brand.isNotEmpty;
+    final hasModel = model.isNotEmpty;
+    if (!hasBrand && !hasModel) return null;
+    if (!hasBrand) return model;
+    if (!hasModel) return brand;
+    return '$brand · $model';
+  }
+}

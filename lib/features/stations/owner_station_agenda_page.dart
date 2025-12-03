@@ -306,6 +306,10 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
         ),
         body: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: _OwnerStationHeader(station: _station),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: const BoxDecoration(color: Colors.white),
@@ -916,6 +920,100 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
       await _loadSlots();
     }
   }
+}
+
+class _OwnerStationHeader extends StatelessWidget {
+  const _OwnerStationHeader({required this.station});
+
+  final Station station;
+
+  @override
+  Widget build(BuildContext context) {
+    final chargerLabel = station.chargerLabel;
+    final address = station.locationFormatted ?? _formatStationAddress(station);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.06),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFFE7ECFF),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: station.photoUrl != null && station.photoUrl!.isNotEmpty
+                ? Image.network(station.photoUrl!, fit: BoxFit.cover)
+                : const Icon(
+                    Icons.ev_station,
+                    size: 36,
+                    color: Color(0xFF2C75FF),
+                  ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  station.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (chargerLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    chargerLabel,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  address,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.black87),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatStationAddress(Station station) {
+  final parts = <String>[
+    station.streetNumber,
+    station.streetName,
+    station.postalCode,
+    station.city,
+    station.country,
+  ];
+  parts.removeWhere((part) => part.trim().isEmpty);
+  if (parts.isEmpty) {
+    return station.locationFormatted ?? 'Adresse non renseignée';
+  }
+  return parts.join(' ');
 }
 
 class StationAgendaEntry {
