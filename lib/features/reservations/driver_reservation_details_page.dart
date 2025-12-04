@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_timezone.dart';
 import '../profile/models/profile.dart';
@@ -77,7 +78,7 @@ class _DriverReservationDetailsPageState
             _InfoRow(label: 'Adresse', value: address),
             const SizedBox(height: 32),
             OutlinedButton.icon(
-              onPressed: _processing ? null : _showCalendarPlaceholder,
+              onPressed: _processing ? null : _openCalendarOptions,
               icon: const Icon(Icons.event_available_outlined),
               label: const Text('Importer dans mon calendrier'),
               style: OutlinedButton.styleFrom(
@@ -182,10 +183,183 @@ class _DriverReservationDetailsPageState
     }
   }
 
-  void _showCalendarPlaceholder() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('L\'export calendrier arrive bientot.')),
+  void _openCalendarOptions() {
+    final station = _reservation.station;
+    final address = station.locationFormatted ?? _formatAddress(station);
+    final start = _slot.startAt.toUtc();
+    final end = _slot.endAt.toUtc();
+    final title = 'Recharge ${station.name}';
+    final description = _calendarDescription(station, address);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ajouter ce creneau',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.calendar_today),
+                  title: const Text('Google Agenda'),
+                  subtitle: const Text('Ouvrir Google Agenda'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _launchCalendarUrl(
+                      _googleCalendarUri(
+                        title: title,
+                        description: description,
+                        location: address,
+                        start: start,
+                        end: end,
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text('Outlook Calendar'),
+                  subtitle: const Text('Ouvrir Outlook'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _launchCalendarUrl(
+                      _outlookCalendarUri(
+                        title: title,
+                        description: description,
+                        location: address,
+                        start: start,
+                        end: end,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  String _calendarDescription(Station station, String address) {
+    final buffer = StringBuffer()
+      ..writeln('Borne : ${station.name}')
+      ..writeln('Adresse : $address');
+    final info = station.additionalInfo;
+    if (info != null && info.trim().isNotEmpty) {
+      buffer.writeln('Infos : ${info.trim()}');
+    }
+    buffer.writeln('Reservation creee dans Plogo.');
+    return buffer.toString();
+  }
+
+  Uri _googleCalendarUri({
+    required String title,
+    required String description,
+    required String location,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final dates = '${_googleDate(start)}/${_googleDate(end)}';
+    return Uri(
+      scheme: 'https',
+      host: 'calendar.google.com',
+      path: '/calendar/render',
+      queryParameters: {
+        'action': 'TEMPLATE',
+        'text': title,
+        'details': description,
+        'location': location,
+        'dates': dates,
+      },
+    );
+  }
+
+  Uri _outlookCalendarUri({
+    required String title,
+    required String description,
+    required String location,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    return Uri(
+      scheme: 'https',
+      host: 'outlook.live.com',
+      path: '/calendar/0/action/compose',
+      queryParameters: {
+        'rru': 'addevent',
+        'subject': title,
+        'body': description,
+        'location': location,
+        'startdt': _isoString(start),
+        'enddt': _isoString(end),
+      },
+    );
+  }
+
+  String _googleDate(DateTime date) {
+    final utc = date.toUtc();
+    final year = utc.year.toString().padLeft(4, '0');
+    final month = utc.month.toString().padLeft(2, '0');
+    final day = utc.day.toString().padLeft(2, '0');
+    final hour = utc.hour.toString().padLeft(2, '0');
+    final minute = utc.minute.toString().padLeft(2, '0');
+    final second = utc.second.toString().padLeft(2, '0');
+    return '${year}${month}${day}T$hour$minute${second}Z';
+  }
+
+  String _isoString(DateTime date) {
+    final utc = date.toUtc();
+    final year = utc.year.toString().padLeft(4, '0');
+    final month = utc.month.toString().padLeft(2, '0');
+    final day = utc.day.toString().padLeft(2, '0');
+    final hour = utc.hour.toString().padLeft(2, '0');
+    final minute = utc.minute.toString().padLeft(2, '0');
+    final second = utc.second.toString().padLeft(2, '0');
+    return '$year-$month-$dayT$hour:$minute:${second}Z';
+  }
+
+  Future<void> _launchCalendarUrl(Uri uri) async {
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Impossible d\'ouvrir le calendrier. Reessayez plus tard.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Impossible d\'ouvrir le calendrier. Reessayez plus tard.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _openStationDetails() async {
