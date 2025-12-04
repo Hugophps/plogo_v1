@@ -7,6 +7,7 @@ import '../stations/driver_station_booking_page.dart';
 import '../stations/models/station.dart';
 import '../stations/owner_station_agenda_page.dart';
 import '../stations/station_slots_repository.dart';
+import '../stations/widgets/station_maps_launcher.dart';
 import 'driver_station_models.dart';
 import 'driver_station_repository.dart';
 
@@ -386,10 +387,12 @@ class _StationSummaryCard extends StatelessWidget {
   final Station station;
   final DriverStationOwnerSummary owner;
   final DriverStationAccessStatus status;
+  static const _mapsLauncher = StationMapsLauncher();
 
   @override
   Widget build(BuildContext context) {
     final address = _formatAddress(station);
+    final canLaunchMaps = _hasLaunchableAddress(station);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -459,14 +462,28 @@ class _StationSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text(
-            address,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  address,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              if (canLaunchMaps) ...[
+                const SizedBox(width: 8),
+                _OpenInMapsButton(
+                  onPressed: () =>
+                      _mapsLauncher.open(context: context, station: station),
+                ),
+              ],
+            ],
           ),
           if (station.additionalInfo != null &&
               station.additionalInfo!.trim().isNotEmpty) ...[
@@ -518,6 +535,22 @@ class _StationSummaryCard extends StatelessWidget {
     if (parts.isEmpty) return 'Adresse non renseignÃƒÆ’Ã‚Â©e';
     return parts.where((part) => part.trim().isNotEmpty).join(' ');
   }
+
+  bool _hasLaunchableAddress(Station station) {
+    if (station.locationLat != null && station.locationLng != null) {
+      return true;
+    }
+    if (station.locationFormatted != null &&
+        station.locationFormatted!.trim().isNotEmpty) {
+      return true;
+    }
+    return [
+      station.streetNumber,
+      station.streetName,
+      station.postalCode,
+      station.city,
+    ].any((part) => part.trim().isNotEmpty);
+  }
 }
 
 class _StatusChip extends StatelessWidget {
@@ -558,6 +591,31 @@ class _StatusChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _OpenInMapsButton extends StatelessWidget {
+  const _OpenInMapsButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Ouvrir l’adresse dans une carte',
+      button: true,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFE7ECFF),
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          onPressed: onPressed,
+          color: const Color(0xFF2C75FF),
+          icon: const Icon(Icons.location_pin),
+        ),
       ),
     );
   }
