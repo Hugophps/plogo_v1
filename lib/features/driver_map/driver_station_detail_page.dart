@@ -393,6 +393,35 @@ class _StationSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final address = _formatAddress(station);
     final canLaunchMaps = _hasLaunchableAddress(station);
+    final streetLine = _streetLine(station);
+    final cityLine = _cityLine(station);
+
+    String? line1 =
+        streetLine != null && streetLine.trim().isNotEmpty ? streetLine : null;
+    String? line2 =
+        cityLine != null && cityLine.trim().isNotEmpty ? cityLine : null;
+
+    if ((line1 == null || line1.isEmpty) &&
+        (line2 == null || line2.isEmpty)) {
+      final formatted = station.locationFormatted?.trim();
+      if (formatted != null && formatted.isNotEmpty) {
+        final segments = formatted.split(',');
+        if (segments.length == 1) {
+          line1 = segments.first.trim();
+        } else {
+          line1 = segments.first.trim();
+          line2 = segments.skip(1).join(', ').trim();
+        }
+      } else {
+        line1 = address;
+      }
+    } else if (line1 == null || line1.isEmpty) {
+      line1 = line2;
+      line2 = null;
+    }
+
+    final structuredLine1 = line1 ?? address;
+    final structuredLine2 = line2;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -462,28 +491,12 @@ class _StationSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  address,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              if (canLaunchMaps) ...[
-                const SizedBox(width: 8),
-                _OpenInMapsButton(
-                  onPressed: () =>
-                      _mapsLauncher.open(context: context, station: station),
-                ),
-              ],
-            ],
+          _StationAddressBlock(
+            line1: structuredLine1,
+            line2: structuredLine2,
+            canLaunchMaps: canLaunchMaps,
+            onOpenMaps: () =>
+                _mapsLauncher.open(context: context, station: station),
           ),
           if (station.additionalInfo != null &&
               station.additionalInfo!.trim().isNotEmpty) ...[
@@ -534,6 +547,25 @@ class _StationSummaryCard extends StatelessWidget {
     parts.removeWhere((part) => part.trim().isEmpty);
     if (parts.isEmpty) return 'Adresse non renseignÃƒÆ’Ã‚Â©e';
     return parts.where((part) => part.trim().isNotEmpty).join(' ');
+  }
+
+  String? _streetLine(Station station) {
+    final parts = <String>[
+      station.streetNumber,
+      station.streetName,
+    ].where((part) => part.trim().isNotEmpty).toList();
+    if (parts.isEmpty) return null;
+    return parts.join(' ');
+  }
+
+  String? _cityLine(Station station) {
+    final parts = <String>[
+      station.postalCode,
+      station.city,
+      station.country,
+    ].where((part) => part.trim().isNotEmpty).toList();
+    if (parts.isEmpty) return null;
+    return parts.join(' ');
   }
 
   bool _hasLaunchableAddress(Station station) {
@@ -615,6 +647,249 @@ class _OpenInMapsButton extends StatelessWidget {
           onPressed: onPressed,
           color: const Color(0xFF2C75FF),
           icon: const Icon(Icons.location_pin),
+        ),
+      ),
+    );
+  }
+}
+
+class _StationAddressBlock extends StatelessWidget {
+  const _StationAddressBlock({
+    required this.line1,
+    this.line2,
+    required this.canLaunchMaps,
+    required this.onOpenMaps,
+  });
+
+  final String line1;
+  final String? line2;
+  final bool canLaunchMaps;
+  final VoidCallback onOpenMaps;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = const Color(0xFFF1F4FF);
+    final textColor = Colors.black87;
+    final secondaryColor = Colors.black54;
+    final showLine2 = line2 != null && line2!.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ScrollingAddressLine(
+                  text: line1,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                    fontSize: 14,
+                  ),
+                  backgroundColor: background,
+                ),
+                if (showLine2) ...[
+                  const SizedBox(height: 4),
+                  _ScrollingAddressLine(
+                    text: line2!.trim(),
+                    style: TextStyle(
+                      color: secondaryColor,
+                      fontSize: 13,
+                    ),
+                    backgroundColor: background,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (canLaunchMaps) ...[
+            const SizedBox(width: 8),
+            _OpenInMapsButton(onPressed: onOpenMaps),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ScrollingAddressLine extends StatefulWidget {
+  const _ScrollingAddressLine({
+    required this.text,
+    required this.style,
+    required this.backgroundColor,
+    this.pause = const Duration(seconds: 2),
+  });
+
+  final String text;
+  final TextStyle style;
+  final Color backgroundColor;
+  final Duration pause;
+
+  @override
+  State<_ScrollingAddressLine> createState() => _ScrollingAddressLineState();
+}
+
+class _ScrollingAddressLineState extends State<_ScrollingAddressLine> {
+  final ScrollController _controller = ScrollController();
+  bool _shouldScroll = false;
+  bool _loopActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _evaluateScrollNeed());
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScrollingAddressLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _stopLoop();
+      if (_controller.hasClients) {
+        _controller.jumpTo(0);
+      }
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _evaluateScrollNeed());
+  }
+
+  void _evaluateScrollNeed() {
+    if (!mounted || !_controller.hasClients) return;
+    final needScroll = _controller.position.maxScrollExtent > 4;
+    if (needScroll != _shouldScroll) {
+      setState(() => _shouldScroll = needScroll);
+    }
+    if (needScroll) {
+      _startLoop();
+    } else {
+      _stopLoop();
+    }
+  }
+
+  void _startLoop() {
+    if (_loopActive) return;
+    _loopActive = true;
+    _runLoop();
+  }
+
+  Future<void> _runLoop() async {
+    while (_loopActive && mounted) {
+      await Future.delayed(widget.pause);
+      if (!_loopActive || !mounted || !_controller.hasClients) break;
+      final duration = _scrollDuration();
+      try {
+        await _controller.animateTo(
+          _controller.position.maxScrollExtent,
+          duration: duration,
+          curve: Curves.easeInOut,
+        );
+      } catch (_) {
+        break;
+      }
+      if (!_loopActive || !mounted || !_controller.hasClients) break;
+      await Future.delayed(widget.pause);
+      if (!_loopActive || !mounted || !_controller.hasClients) break;
+      try {
+        await _controller.animateTo(
+          0,
+          duration: duration,
+          curve: Curves.easeInOut,
+        );
+      } catch (_) {
+        break;
+      }
+    }
+    _loopActive = false;
+  }
+
+  Duration _scrollDuration() {
+    if (!_controller.hasClients) return const Duration(milliseconds: 1500);
+    final extent = _controller.position.maxScrollExtent;
+    final milliseconds = (extent * 40).clamp(1500, 8000).round();
+    return Duration(milliseconds: milliseconds);
+  }
+
+  void _stopLoop() {
+    _loopActive = false;
+  }
+
+  @override
+  void dispose() {
+    _loopActive = false;
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _evaluateScrollNeed());
+    return SizedBox(
+      height:
+          widget.style.fontSize != null ? widget.style.fontSize! * 1.4 : null,
+      child: Stack(
+        children: [
+          ClipRect(
+            child: SingleChildScrollView(
+              controller: _controller,
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              child: Text(
+                widget.text,
+                style: widget.style,
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ),
+          ),
+          if (_shouldScroll) ...[
+            _GradientFade(
+              alignment: Alignment.centerLeft,
+              color: widget.backgroundColor,
+            ),
+            _GradientFade(
+              alignment: Alignment.centerRight,
+              color: widget.backgroundColor,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GradientFade extends StatelessWidget {
+  const _GradientFade({required this.alignment, required this.color});
+
+  final Alignment alignment;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final begin =
+        alignment == Alignment.centerLeft ? Alignment.centerLeft : Alignment.centerRight;
+    final end =
+        alignment == Alignment.centerLeft ? Alignment.centerRight : Alignment.centerLeft;
+    return Align(
+      alignment: alignment,
+      child: IgnorePointer(
+        child: Container(
+          width: 18,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: begin,
+              end: end,
+              colors: [
+                color,
+                color.withOpacity(0),
+              ],
+            ),
+          ),
         ),
       ),
     );
