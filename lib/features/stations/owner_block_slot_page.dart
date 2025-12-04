@@ -715,6 +715,9 @@ class _StationHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chargerLabel = station.chargerLabel;
+    final priceLabel = station.priceLabel;
+    final address = station.locationFormatted ?? _formatAddress();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -729,31 +732,78 @@ class _StationHeader extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
               color: const Color(0xFFE7ECFF),
-              borderRadius: BorderRadius.circular(12),
             ),
+            clipBehavior: Clip.antiAlias,
             child: station.photoUrl != null && station.photoUrl!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(station.photoUrl!, fit: BoxFit.cover),
-                  )
+                ? Image.network(station.photoUrl!, fit: BoxFit.cover)
                 : const Icon(Icons.ev_station, color: Color(0xFF2C75FF)),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              station.name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  station.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (chargerLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    chargerLabel,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                if (priceLabel != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    priceLabel,
+                    style: const TextStyle(
+                      color: Color(0xFF2C75FF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  address,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.black87),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatAddress() {
+    final parts = <String>[
+      station.streetNumber,
+      station.streetName,
+      station.postalCode,
+      station.city,
+      station.country,
+    ];
+    parts.removeWhere((part) => part.trim().isEmpty);
+    if (parts.isEmpty) return 'Adresse non renseignee';
+    return parts.join(' ');
   }
 }
 
