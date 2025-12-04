@@ -335,7 +335,7 @@ class _DriverReservationDetailsPageState
     final hour = utc.hour.toString().padLeft(2, '0');
     final minute = utc.minute.toString().padLeft(2, '0');
     final second = utc.second.toString().padLeft(2, '0');
-    return '$year-$month-$dayT$hour:$minute:${second}Z';
+    return '${year}-${month}-${day}T$hour:$minute:${second}Z';
   }
 
   Future<void> _launchCalendarUrl(Uri uri) async {
