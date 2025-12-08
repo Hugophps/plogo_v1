@@ -1,8 +1,3 @@
-import {
-  decode as decodeBase64,
-  encode as encodeBase64,
-} from "https://deno.land/std@0.224.0/encoding/base64.ts";
-
 const ENODE_CLIENT_ID = Deno.env.get("ENODE_CLIENT_ID") ?? "";
 const ENODE_CLIENT_SECRET = Deno.env.get("ENODE_CLIENT_SECRET") ?? "";
 const ENODE_API_URL = Deno.env.get("ENODE_API_URL") ?? "";
@@ -246,4 +241,21 @@ function base64UrlDecode(value: string): Uint8Array {
     base64 += "==";
   }
   return decodeBase64(base64);
+}
+
+function encodeBase64(data: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  return btoa(binary);
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
