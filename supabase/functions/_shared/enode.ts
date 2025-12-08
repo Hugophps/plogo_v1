@@ -140,13 +140,6 @@ export async function enodeJson(
 
   return json;
 }
-      }
-    }
-    throw new EnodeApiError(message, response.status, text || json);
-  }
-
-  return json;
-}
 
 let stateKeyPromise: Promise<CryptoKey> | null = null;
 
