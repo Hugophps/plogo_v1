@@ -1,7 +1,7 @@
 import {
-  decode as base64UrlDecode,
-  encode as base64UrlEncode,
-} from "https://deno.land/std@0.224.0/encoding/base64url.ts";
+  decode as decodeBase64,
+  encode as encodeBase64,
+} from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const ENODE_CLIENT_ID = Deno.env.get("ENODE_CLIENT_ID") ?? "";
 const ENODE_CLIENT_SECRET = Deno.env.get("ENODE_CLIENT_SECRET") ?? "";
@@ -230,4 +230,20 @@ function normalizeVendor(value: unknown): string {
     }
   }
   return "";
+}
+
+function base64UrlEncode(data: Uint8Array): string {
+  const base64 = encodeBase64(data);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value: string): Uint8Array {
+  let base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = base64.length % 4;
+  if (padding === 2) base64 += "==";
+  else if (padding === 3) base64 += "=";
+  else if (padding !== 0) {
+    base64 += "==";
+  }
+  return decodeBase64(base64);
 }
