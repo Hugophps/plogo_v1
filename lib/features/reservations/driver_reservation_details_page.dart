@@ -10,6 +10,8 @@ import '../stations/driver_station_booking_page.dart';
 import '../stations/models/station.dart';
 import '../stations/models/station_slot.dart';
 import '../stations/station_slots_repository.dart';
+import '../stations/widgets/station_address_display.dart';
+import '../stations/widgets/station_maps_launcher.dart';
 import 'driver_reservations_repository.dart';
 
 class DriverReservationDetailsPage extends StatefulWidget {
@@ -58,10 +60,10 @@ class _DriverReservationDetailsPageState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _StationSummaryCard(
+              station: station,
               title: station.name,
               subtitle: _formatDate(start),
               timeRange: '${_formatHour(start)} - ${_formatHour(end)}',
-              address: address,
               photoUrl: station.photoUrl,
               onTap: _openStationDetails,
             ),
@@ -440,20 +442,21 @@ class _DriverReservationDetailsPageState
 
 class _StationSummaryCard extends StatelessWidget {
   const _StationSummaryCard({
+    required this.station,
     required this.title,
     required this.subtitle,
     required this.timeRange,
-    required this.address,
     this.photoUrl,
     this.onTap,
   });
 
+  final Station station;
   final String title;
   final String subtitle;
   final String timeRange;
-  final String address;
   final String? photoUrl;
   final VoidCallback? onTap;
+  static const _mapsLauncher = StationMapsLauncher();
 
   @override
   Widget build(BuildContext context) {
@@ -513,7 +516,11 @@ class _StationSummaryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(address, style: const TextStyle(color: Colors.black87)),
+                const SizedBox(height: 8),
+                StationAddressDisplay(
+                  station: station,
+                  mapsLauncher: _mapsLauncher,
+                ),
               ],
             ),
           ),
