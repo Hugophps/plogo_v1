@@ -94,11 +94,6 @@ Deno.serve(async (req) => {
     await ensureNoOtherEnodeStation(supabase, profile.id, stationId);
 
     const enodeUserId = await ensureEnodeUserId(supabase, profile);
-    const stateToken = await createStateToken({
-      profile_id: profile.id,
-      station_id: stationId,
-    });
-
     const session = await enodeJson(
       `/users/${enodeUserId}/link`,
       {
@@ -108,7 +103,6 @@ Deno.serve(async (req) => {
           scopes: ENODE_SCOPES,
           language: "fr-FR",
           redirectUri: ENODE_REDIRECT_URI,
-          state: stateToken,
         }),
       },
       undefined,
