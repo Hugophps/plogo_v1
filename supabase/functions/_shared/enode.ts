@@ -18,7 +18,7 @@ const decoder = new TextDecoder();
 const scopeEnv = Deno.env.get("ENODE_CHARGER_SCOPES");
 export const ENODE_SCOPES = scopeEnv
   ? scopeEnv.split(",").map((scope) => scope.trim()).filter((scope) => scope)
-  : ["charger:read", "charger:write"];
+  : ["charger:read:data", "charger:control:charging"];
 
 export { ENODE_REDIRECT_URI };
 
@@ -88,6 +88,16 @@ export async function enodeFetch(
   });
 }
 
+export class EnodeApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body: unknown,
+  ) {
+    super(message);
+  }
+}
+
 export async function enodeJson(
   path: string,
   init: RequestInit = {},
@@ -97,29 +107,42 @@ export async function enodeJson(
   const response = await enodeFetch(path, init, searchParams);
   const text = await response.text();
 
-  let json: unknown;
+  let json: unknown = null;
   if (text) {
     try {
       json = JSON.parse(text);
     } catch {
-      throw new Error(errorMessage ?? "Réponse Enode invalide.");
+      json = null;
     }
-  } else {
-    json = null;
   }
 
   if (!response.ok) {
-    console.error("Enode API error", json);
-    if (typeof json === "object" && json !== null && "error" in json) {
-      const errorObj = json as Record<string, unknown>;
-      const message =
-        (errorObj["error_description"] ?? errorObj["message"] ?? errorObj["error"])
-          ?.toString();
-      throw new Error(
-        message ?? errorMessage ?? "Erreur lors de l'appel à Enode.",
-      );
+    console.error("Enode API error", {
+      status: response.status,
+      body: text || null,
+    });
+    let message = errorMessage ?? "Erreur lors de l'appel à Enode.";
+    if (json && typeof json === "object") {
+      const errorText =
+        (json as Record<string, unknown>)["detail"] ??
+        (json as Record<string, unknown>)["title"] ??
+        (json as Record<string, unknown>)["error_description"] ??
+        (json as Record<string, unknown>)["error"];
+      if (typeof errorText === "string") {
+        const trimmed = errorText.trim();
+        if (trimmed.length > 0) {
+          message = trimmed;
+        }
+      }
     }
-    throw new Error(errorMessage ?? "Erreur lors de l'appel à Enode.");
+    throw new EnodeApiError(message, response.status, text || json);
+  }
+
+  return json;
+}
+      }
+    }
+    throw new EnodeApiError(message, response.status, text || json);
   }
 
   return json;

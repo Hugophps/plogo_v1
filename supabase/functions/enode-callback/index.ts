@@ -2,6 +2,7 @@
 /// <reference lib="deno.unstable" />
 
 import {
+  EnodeApiError,
   extractChargerLabels,
   enodeJson,
   verifyStateToken,
@@ -113,6 +114,16 @@ Deno.serve(async (req) => {
   } catch (error) {
     if (error instanceof ResponseError) {
       return htmlResponse(error.message, 400);
+    }
+    if (error instanceof EnodeApiError) {
+      console.error("enode-callback enode error", {
+        status: error.status,
+        body: error.body,
+      });
+      return htmlResponse(
+        "Connexion Enode indisponible pour le moment. Réessayez plus tard.",
+        502,
+      );
     }
 
     console.error("enode-callback error", error);

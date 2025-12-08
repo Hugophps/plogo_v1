@@ -4,6 +4,7 @@
 import {
   ENODE_REDIRECT_URI,
   ENODE_SCOPES,
+  EnodeApiError,
   createStateToken,
   enodeJson,
 } from "../_shared/enode.ts";
@@ -92,20 +93,20 @@ Deno.serve(async (req) => {
 
     await ensureNoOtherEnodeStation(supabase, profile.id, stationId);
 
-    const enodeUserId = await ensureEnodeUser(supabase, profile);
+    const enodeUserId = await ensureEnodeUserId(supabase, profile);
     const stateToken = await createStateToken({
       profile_id: profile.id,
       station_id: stationId,
     });
 
     const session = await enodeJson(
-      "/link-sessions",
+      `/users/${enodeUserId}/link`,
       {
         method: "POST",
         body: JSON.stringify({
-          userId: enodeUserId,
           vendorType: "charger",
           scopes: ENODE_SCOPES,
+          language: "fr-FR",
           redirectUri: ENODE_REDIRECT_URI,
           state: stateToken,
         }),
@@ -114,9 +115,9 @@ Deno.serve(async (req) => {
       "Impossible de créer une session de connexion Enode.",
     ) as Record<string, unknown> | null;
 
-    const linkUrl = session?.["url"] ??
+    const linkUrl = session?.["linkUrl"] ??
       session?.["link_url"] ??
-      session?.["linkUrl"];
+      session?.["url"];
     if (typeof linkUrl !== "string" || !linkUrl.trim()) {
       throw new Error("Lien de connexion Enode manquant.");
     }
@@ -130,6 +131,15 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: error.message }),
         { status: error.status, headers: withJson(corsHeaders) },
+      );
+    }
+    if (error instanceof EnodeApiError) {
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        {
+          status: error.status >= 500 ? 502 : error.status,
+          headers: withJson(corsHeaders),
+        },
       );
     }
 
@@ -222,41 +232,27 @@ async function ensureNoOtherEnodeStation(
   }
 }
 
-async function ensureEnodeUser(
+async function ensureEnodeUserId(
   supabase: ReturnType<typeof createSupabaseClient>,
   profile: ProfileRow,
 ) {
-  if (profile.enode_user_id) return profile.enode_user_id;
-
-  const user = await enodeJson(
-    "/users",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        externalUserId: profile.id,
-      }),
-    },
-    undefined,
-    "Impossible de créer l'utilisateur Enode.",
-  ) as Record<string, unknown> | null;
-
-  const enodeUserId = user?.["id"] ?? user?.["user_id"] ?? user?.["userId"];
-  if (typeof enodeUserId !== "string" || !enodeUserId.trim()) {
-    throw new Error("Identifiant Enode manquant après création.");
+  if (profile.enode_user_id && profile.enode_user_id.trim().length > 0) {
+    return profile.enode_user_id.trim();
   }
 
+  const fallbackId = profile.id;
   const { error } = await supabase
     .from("profiles")
-    .update({ enode_user_id: enodeUserId })
+    .update({ enode_user_id: fallbackId })
     .eq("id", profile.id);
 
   if (error) {
-    console.error("ensureEnodeUser update error", error);
+    console.error("ensureEnodeUserId update error", error);
     throw new ResponseError(
-      "Impossible de sauvegarder l'utilisateur Enode.",
+      "Impossible de préparer l'identifiant Enode de l'utilisateur.",
       500,
     );
   }
 
-  return enodeUserId;
+  return fallbackId;
 }
