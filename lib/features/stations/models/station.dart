@@ -5,9 +5,11 @@ class Station {
     required this.id,
     required this.ownerId,
     required this.name,
-    required this.chargerBrand,
-    required this.chargerModel,
+    this.chargerBrand,
+    this.chargerModel,
     this.chargerVendor,
+    this.enodeChargerId,
+    this.enodeMetadata,
     this.pricePerKwh,
     required this.useProfileAddress,
     required this.streetName,
@@ -29,9 +31,11 @@ class Station {
   final String id;
   final String ownerId;
   final String name;
-  final String chargerBrand;
-  final String chargerModel;
+  final String? chargerBrand;
+  final String? chargerModel;
   final String? chargerVendor;
+  final String? enodeChargerId;
+  final Map<String, dynamic>? enodeMetadata;
   final double? pricePerKwh;
   final bool useProfileAddress;
   final String streetName;
@@ -54,6 +58,8 @@ class Station {
     String? chargerBrand,
     String? chargerModel,
     String? chargerVendor,
+    String? enodeChargerId,
+    Map<String, dynamic>? enodeMetadata,
     double? pricePerKwh,
     bool? useProfileAddress,
     String? streetName,
@@ -78,6 +84,8 @@ class Station {
       chargerBrand: chargerBrand ?? this.chargerBrand,
       chargerModel: chargerModel ?? this.chargerModel,
       chargerVendor: chargerVendor ?? this.chargerVendor,
+      enodeChargerId: enodeChargerId ?? this.enodeChargerId,
+      enodeMetadata: enodeMetadata ?? this.enodeMetadata,
       pricePerKwh: pricePerKwh ?? this.pricePerKwh,
       useProfileAddress: useProfileAddress ?? this.useProfileAddress,
       streetName: streetName ?? this.streetName,
@@ -102,9 +110,11 @@ class Station {
       id: map['id'] as String,
       ownerId: map['owner_id'] as String,
       name: map['name'] as String,
-      chargerBrand: map['charger_brand'] as String,
-      chargerModel: map['charger_model'] as String,
+      chargerBrand: map['charger_brand'] as String?,
+      chargerModel: map['charger_model'] as String?,
       chargerVendor: map['charger_vendor'] as String?,
+      enodeChargerId: map['enode_charger_id'] as String?,
+      enodeMetadata: _parseMetadata(map['enode_metadata']),
       pricePerKwh: (map['price_per_kwh'] as num?)?.toDouble(),
       useProfileAddress: (map['use_profile_address'] as bool?) ?? false,
       streetName: map['street_name'] as String,
@@ -137,12 +147,19 @@ class Station {
     }
     return rules;
   }
+
+  static Map<String, dynamic>? _parseMetadata(dynamic value) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(value as Map);
+    }
+    return null;
+  }
 }
 
 extension StationChargerLabel on Station {
   String? get chargerLabel {
-    final brand = chargerBrand.trim();
-    final model = chargerModel.trim();
+    final brand = (chargerBrand ?? '').trim();
+    final model = (chargerModel ?? '').trim();
     final hasBrand = brand.isNotEmpty;
     final hasModel = model.isNotEmpty;
     if (!hasBrand && !hasModel) return null;

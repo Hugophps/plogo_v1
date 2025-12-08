@@ -4,12 +4,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/supabase_bootstrap.dart';
 import '../location/google_place_models.dart';
 import '../location/widgets/google_address_field.dart';
 import '../profile/models/profile.dart';
-import 'data/enode_charger_catalog.dart';
+import 'data/enode_link_service.dart';
 import 'models/station.dart';
 
 typedef StationSubmission =
@@ -35,42 +36,6 @@ class StationFormPage extends StatefulWidget {
   State<StationFormPage> createState() => _StationFormPageState();
 }
 
-class _ChargerOptionTile extends StatelessWidget {
-  const _ChargerOptionTile({required this.option});
-
-  final EnodeChargerModel option;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: option.brandColor,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            option.brandLabel,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2933),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            option.model,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _StationFormPageState extends State<StationFormPage> {
   final _formKey = GlobalKey<FormState>();
 
@@ -78,22 +43,23 @@ class _StationFormPageState extends State<StationFormPage> {
   late final TextEditingController _priceController;
   late final TextEditingController _whatsappController;
   late final TextEditingController _infoController;
-  late List<EnodeChargerModel> _chargerOptions;
-  String? _selectedChargerId;
-
   bool _sameAddress = true;
   bool _saving = false;
+  bool _linkingEnode = false;
+  bool _refreshingStation = false;
   Uint8List? _photoBytes;
   String? _remotePhotoUrl;
   GooglePlaceDetails? _stationAddress;
   late final GooglePlaceDetails? _profileAddress;
+  Station? _currentStation;
+  final EnodeLinkService _linkService = const EnodeLinkService();
 
   @override
   void initState() {
     super.initState();
     final station = widget.initialStation;
+    _currentStation = station;
     _sameAddress = station?.useProfileAddress ?? true;
-    _chargerOptions = List<EnodeChargerModel>.from(enodeChargerCatalog);
 
     _nameController = TextEditingController(text: station?.name ?? '');
     _priceController = TextEditingController(
@@ -122,16 +88,6 @@ class _StationFormPageState extends State<StationFormPage> {
       lng: station?.locationLng,
       components: station?.locationComponents,
     );
-    if (station != null) {
-      final matched = _matchStationToCatalog(station);
-      if (matched != null) {
-        _selectedChargerId = matched.optionId;
-      } else {
-        final fallback = _fallbackOptionFromStation(station);
-        _chargerOptions = [fallback, ..._chargerOptions];
-        _selectedChargerId = fallback.optionId;
-      }
-    }
   }
 
   @override
@@ -247,53 +203,12 @@ class _StationFormPageState extends State<StationFormPage> {
     return null;
   }
 
-  EnodeChargerModel? _matchStationToCatalog(Station station) {
-    for (final option in _chargerOptions) {
-      final vendorMatches = station.chargerVendor != null &&
-          station.chargerVendor!.isNotEmpty &&
-          station.chargerVendor!.toUpperCase() == option.vendor.toUpperCase();
-      final brandMatches =
-          station.chargerBrand.toLowerCase() == option.brandLabel.toLowerCase();
-      final modelMatches =
-          station.chargerModel.toLowerCase() == option.model.toLowerCase();
-      if (modelMatches && (vendorMatches || brandMatches)) {
-        return option;
-      }
-    }
-    return null;
-  }
-
-  EnodeChargerModel? _chargerById(String? id) {
-    if (id == null) return null;
-    for (final option in _chargerOptions) {
-      if (option.optionId == id) return option;
-    }
-    return null;
-  }
-
-  EnodeChargerModel _fallbackOptionFromStation(Station station) {
-    return EnodeChargerModel(
-      vendor: (station.chargerVendor?.isNotEmpty == true
-              ? station.chargerVendor!
-              : 'AUTRE')
-          .toUpperCase(),
-      brandLabel: station.chargerBrand,
-      model: station.chargerModel,
-      brandColor: const Color(0xFFE6E9F5),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<Station?> _persistStation({required bool exitOnSuccess}) async {
+    if (!_formKey.currentState!.validate()) return null;
     FocusScope.of(context).unfocus();
 
     setState(() => _saving = true);
     try {
-      final selectedCharger = _chargerById(_selectedChargerId);
-      if (selectedCharger == null) {
-        throw Exception('Selectionnez une borne compatible via la liste.');
-      }
-
       late final GooglePlaceDetails resolvedAddress;
       if (_sameAddress) {
         final profileAddress = _profileAddress;
@@ -364,11 +279,9 @@ class _StationFormPageState extends State<StationFormPage> {
       if (pricePerKwh == null || pricePerKwh <= 0) {
         throw Exception('Le prix du kWh est invalide.');
       }
+
       final payload = {
         'name': _nameController.text.trim(),
-        'charger_brand': selectedCharger.brandLabel,
-        'charger_model': selectedCharger.model,
-        'charger_vendor': selectedCharger.vendor,
         'price_per_kwh': pricePerKwh,
         'use_profile_address': _sameAddress,
         'street_name': parsedAddress['street_name'],
@@ -389,15 +302,127 @@ class _StationFormPageState extends State<StationFormPage> {
 
       final station = await widget.onSubmit(payload, photoUrl);
 
-      if (!mounted) return;
-      Navigator.of(context).pop(station);
+      if (!mounted) {
+        return station;
+      }
+
+      setState(() {
+        _currentStation = station;
+        _remotePhotoUrl = station.photoUrl ?? _remotePhotoUrl;
+        _photoBytes = null;
+      });
+
+      if (exitOnSuccess) {
+        Navigator.of(context).pop(station);
+      }
+
+      return station;
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+      return null;
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    await _persistStation(exitOnSuccess: true);
+  }
+
+  Future<void> _linkEnode() async {
+    if (_saving || _linkingEnode) return;
+    final station = await _persistStation(exitOnSuccess: false);
+    if (station == null || !mounted) return;
+
+    setState(() => _linkingEnode = true);
+    try {
+      final linkUrl = await _linkService.createLinkSession(station.id);
+      final uri = Uri.tryParse(linkUrl);
+      if (uri == null) {
+        throw Exception('Lien Enode invalide.');
+      }
+
+      bool launched = await launchUrl(
+        uri,
+        mode: LaunchMode.inAppBrowserView,
+      );
+      if (!launched) {
+        launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      if (!launched) {
+        throw Exception(
+          "Ouverture du flux Enode impossible sur cet appareil.",
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Complétez la connexion Enode dans la fenêtre ouverte.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur Enode: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _linkingEnode = false);
+      }
+    }
+  }
+
+  Future<void> _refreshStationStatus() async {
+    final stationId = _currentStation?.id ?? widget.initialStation?.id;
+    if (stationId == null || _refreshingStation) {
+      if (stationId == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Créez et enregistrez la station avant de la connecter.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _refreshingStation = true);
+    try {
+      final response = await supabase
+          .from('stations')
+          .select()
+          .eq('id', stationId)
+          .single();
+      final updated = Station.fromMap(
+        Map<String, dynamic>.from(response as Map<String, dynamic>),
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentStation = updated;
+        _remotePhotoUrl = updated.photoUrl ?? _remotePhotoUrl;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Station mise à jour.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Actualisation impossible: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _refreshingStation = false);
     }
   }
 
@@ -445,33 +470,13 @@ class _StationFormPageState extends State<StationFormPage> {
                 ).copyWith(suffixText: '€/kWh'),
                 validator: _validatePrice,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedChargerId,
-                decoration: _fieldDecoration(
-                  'Votre borne de recharge',
-                  required: true,
-                ),
-                isExpanded: true,
-                hint: const Text('Selectionnez votre borne'),
-                items: _chargerOptions
-                    .map(
-                      (option) => DropdownMenuItem<String>(
-                        value: option.optionId,
-                        child: _ChargerOptionTile(option: option),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedChargerId = value);
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Selectionner votre borne est obligatoire';
-                  }
-                  return null;
-                },
+              const SizedBox(height: 16),
+              const Text(
+                'Connexion Enode',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: 12),
+              _buildEnodeCard(),
               const SizedBox(height: 24),
               const Text(
                 'Informations de la borne',
@@ -662,6 +667,104 @@ class _StationFormPageState extends State<StationFormPage> {
       Icons.person_add_alt_1,
       color: Color(0xFF2C75FF),
       size: 32,
+    );
+  }
+
+  Widget _buildEnodeCard() {
+    final station = _currentStation;
+    final brand = (station?.chargerBrand ?? '').trim();
+    final model = (station?.chargerModel ?? '').trim();
+    final hasCharger = brand.isNotEmpty || model.isNotEmpty;
+    final subtitle = hasCharger
+        ? '${brand.isNotEmpty ? brand : 'Borne'} · ${model.isNotEmpty ? model : 'Modèle'}'
+        : 'Connectez votre borne officielle via Enode pour remplir automatiquement ces champs.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E3EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasCharger ? Icons.ev_station : Icons.link,
+                color: hasCharger ? const Color(0xFF2C75FF) : Colors.black54,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasCharger
+                          ? 'Borne connectée via Enode'
+                          : 'Aucune borne connectée',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Nous sauvegarderons automatiquement vos informations avant d'ouvrir la fenêtre Enode.",
+            style: const TextStyle(color: Colors.black87, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: (_saving || _linkingEnode) ? null : _linkEnode,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2C75FF),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: _linkingEnode
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Connecter ma borne via Enode'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed:
+                (_currentStation == null || _refreshingStation) ? null : _refreshStationStatus,
+            icon: _refreshingStation
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            label: const Text('Actualiser le statut'),
+          ),
+        ],
+      ),
     );
   }
 }

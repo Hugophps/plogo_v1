@@ -47,6 +47,8 @@ class DriverReservationsRepository {
             charger_brand,
             charger_model,
             charger_vendor,
+            enode_charger_id,
+            enode_metadata,
             use_profile_address,
             street_name,
             street_number,

@@ -16,6 +16,8 @@ class DriverStationRepository {
         charger_brand,
         charger_model,
         charger_vendor,
+        enode_charger_id,
+        enode_metadata,
         price_per_kwh,
         use_profile_address,
         street_name,

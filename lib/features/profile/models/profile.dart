@@ -23,6 +23,7 @@ class Profile {
     this.addressLng,
     this.addressFormatted,
     this.addressComponents,
+    this.enodeUserId,
   });
 
   final String id;
@@ -48,6 +49,7 @@ class Profile {
   final double? addressLng;
   final String? addressFormatted;
   final List<dynamic>? addressComponents;
+  final String? enodeUserId;
 
   bool get hasRole => role == 'owner' || role == 'driver';
   bool get isOwner => role == 'owner';
@@ -81,6 +83,7 @@ class Profile {
     double? addressLng,
     String? addressFormatted,
     List<dynamic>? addressComponents,
+    String? enodeUserId,
   }) {
     return Profile(
       id: id,
@@ -106,6 +109,7 @@ class Profile {
       addressLng: addressLng ?? this.addressLng,
       addressFormatted: addressFormatted ?? this.addressFormatted,
       addressComponents: addressComponents ?? this.addressComponents,
+      enodeUserId: enodeUserId ?? this.enodeUserId,
     );
   }
 
@@ -134,6 +138,7 @@ class Profile {
       addressLng: (map['address_lng'] as num?)?.toDouble(),
       addressFormatted: map['address_formatted'] as String?,
       addressComponents: map['address_components'] as List<dynamic>?,
+      enodeUserId: map['enode_user_id'] as String?,
     );
   }
 }

@@ -1,0 +1,233 @@
+import {
+  decode as base64UrlDecode,
+  encode as base64UrlEncode,
+} from "https://deno.land/std@0.224.0/encoding/base64url.ts";
+
+const ENODE_CLIENT_ID = Deno.env.get("ENODE_CLIENT_ID") ?? "";
+const ENODE_CLIENT_SECRET = Deno.env.get("ENODE_CLIENT_SECRET") ?? "";
+const ENODE_API_URL = Deno.env.get("ENODE_API_URL") ?? "";
+const ENODE_OAUTH_URL = Deno.env.get("ENODE_OAUTH_URL") ?? "";
+const ENODE_REDIRECT_URI = Deno.env.get("ENODE_REDIRECT_URI") ?? "";
+const ENODE_STATE_SECRET = Deno.env.get("ENODE_STATE_SECRET") ?? "";
+
+if (
+  !ENODE_CLIENT_ID || !ENODE_CLIENT_SECRET || !ENODE_API_URL ||
+  !ENODE_OAUTH_URL || !ENODE_REDIRECT_URI || !ENODE_STATE_SECRET
+) {
+  throw new Error("Missing Enode configuration");
+}
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+const scopeEnv = Deno.env.get("ENODE_CHARGER_SCOPES");
+export const ENODE_SCOPES = scopeEnv
+  ? scopeEnv.split(",").map((scope) => scope.trim()).filter((scope) => scope)
+  : ["charger:read", "charger:write"];
+
+export { ENODE_REDIRECT_URI };
+
+type TokenCache = { token: string; expiresAt: number } | null;
+let cachedToken: TokenCache = null;
+
+async function fetchAccessToken(): Promise<string> {
+  const now = Date.now();
+  if (cachedToken && cachedToken.expiresAt > now + 30_000) {
+    return cachedToken.token;
+  }
+
+  const basicAuth = btoa(`${ENODE_CLIENT_ID}:${ENODE_CLIENT_SECRET}`);
+  const response = await fetch(ENODE_OAUTH_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basicAuth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Enode OAuth error: ${text}`);
+  }
+
+  const json = await response.json() as {
+    access_token: string;
+    expires_in: number;
+  };
+
+  cachedToken = {
+    token: json.access_token,
+    expiresAt: now + json.expires_in * 1000,
+  };
+
+  return cachedToken.token;
+}
+
+export async function enodeFetch(
+  path: string,
+  init: RequestInit = {},
+  searchParams?: Record<string, string>,
+) {
+  const token = await fetchAccessToken();
+  const url = new URL(
+    path.startsWith("http")
+      ? path
+      : `${ENODE_API_URL}${path.startsWith("/") ? path : `/${path}`}`,
+  );
+  if (searchParams) {
+    Object.entries(searchParams).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+  }
+
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return await fetch(url.toString(), {
+    ...init,
+    headers,
+  });
+}
+
+export async function enodeJson(
+  path: string,
+  init: RequestInit = {},
+  searchParams?: Record<string, string>,
+  errorMessage?: string,
+) {
+  const response = await enodeFetch(path, init, searchParams);
+  const text = await response.text();
+
+  let json: unknown;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(errorMessage ?? "Réponse Enode invalide.");
+    }
+  } else {
+    json = null;
+  }
+
+  if (!response.ok) {
+    console.error("Enode API error", json);
+    if (typeof json === "object" && json !== null && "error" in json) {
+      const errorObj = json as Record<string, unknown>;
+      const message =
+        (errorObj["error_description"] ?? errorObj["message"] ?? errorObj["error"])
+          ?.toString();
+      throw new Error(
+        message ?? errorMessage ?? "Erreur lors de l'appel à Enode.",
+      );
+    }
+    throw new Error(errorMessage ?? "Erreur lors de l'appel à Enode.");
+  }
+
+  return json;
+}
+
+let stateKeyPromise: Promise<CryptoKey> | null = null;
+
+async function getStateKey(): Promise<CryptoKey> {
+  if (!stateKeyPromise) {
+    stateKeyPromise = crypto.subtle.importKey(
+      "raw",
+      encoder.encode(ENODE_STATE_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"],
+    );
+  }
+  return await stateKeyPromise;
+}
+
+function bufferEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff === 0;
+}
+
+export async function createStateToken(
+  payload: Record<string, string>,
+): Promise<string> {
+  const rawPayload = encoder.encode(
+    JSON.stringify({
+      ...payload,
+      ts: Date.now(),
+    }),
+  );
+
+  const key = await getStateKey();
+  const signature = new Uint8Array(
+    await crypto.subtle.sign("HMAC", key, rawPayload),
+  );
+
+  return `${base64UrlEncode(rawPayload)}.${base64UrlEncode(signature)}`;
+}
+
+export async function verifyStateToken<T = Record<string, unknown>>(
+  token: string,
+): Promise<T> {
+  const [rawPart, signaturePart] = token.split(".");
+  if (!rawPart || !signaturePart) {
+    throw new Error("State invalide");
+  }
+
+  const payloadBytes = base64UrlDecode(rawPart);
+  const signatureBytes = base64UrlDecode(signaturePart);
+  const key = await getStateKey();
+  const expectedSignature = new Uint8Array(
+    await crypto.subtle.sign("HMAC", key, payloadBytes),
+  );
+
+  if (!bufferEqual(signatureBytes, expectedSignature)) {
+    throw new Error("State invalide (signature)");
+  }
+
+  const decoded = decoder.decode(payloadBytes);
+  const data = JSON.parse(decoded) as T;
+  return data;
+}
+
+export function extractChargerLabels(metadata: Record<string, unknown>) {
+  const vendorLabel = normalizeVendor(metadata["vendor"]);
+  const brand = metadata["brand"] ??
+    metadata["manufacturer"] ??
+    (vendorLabel ? vendorLabel : null);
+  const model = metadata["model"] ??
+    metadata["name"] ??
+    metadata["product_name"] ??
+    metadata["id"];
+
+  const brandLabel = typeof brand === "string" ? brand.trim() : "";
+  const modelLabel = typeof model === "string" ? model.trim() : "";
+
+  return {
+    brand: brandLabel,
+    model: modelLabel,
+    vendor: vendorLabel,
+  };
+}
+
+function normalizeVendor(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (value && typeof value === "object") {
+    const data = value as Record<string, unknown>;
+    for (const key of ["name", "label", "slug"]) {
+      const label = data[key];
+      if (typeof label === "string" && label.trim()) {
+        return label.trim();
+      }
+    }
+  }
+  return "";
+}
