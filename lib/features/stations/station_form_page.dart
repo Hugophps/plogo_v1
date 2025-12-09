@@ -111,7 +111,7 @@ class _StationFormPageState extends State<StationFormPage> {
       final file = result.files.first;
       final bytes = file.bytes;
       if (bytes == null) {
-        throw Exception('Impossible de lire le fichier selectionne.');
+        throw Exception("Impossible de lire le fichier selectionné.");
       }
 
       final decoded = img.decodeImage(bytes);
@@ -255,7 +255,7 @@ class _StationFormPageState extends State<StationFormPage> {
       String? photoUrl = _remotePhotoUrl;
       if (_photoBytes != null) {
         final user = supabase.auth.currentUser;
-        if (user == null) throw Exception('Utilisateur non connecte');
+        if (user == null) throw Exception("Utilisateur non connecté");
 
         final path =
             'stations/${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -435,7 +435,7 @@ class _StationFormPageState extends State<StationFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Créez d’abord la station avant de sélectionner une borne Enode.',
+            "Créez d’abord la station avant de sélectionner une borne Enode.",
           ),
         ),
       );
@@ -520,7 +520,7 @@ class _StationFormPageState extends State<StationFormPage> {
               TextFormField(
                 controller: _nameController,
                 decoration: _fieldDecoration(
-                  'Donnez un nom Ã  votre borne',
+                  "Donnez un nom à votre borne",
                   required: true,
                 ),
                 validator: _validateRequired,
@@ -681,7 +681,7 @@ class _StationFormPageState extends State<StationFormPage> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Information / instructions complÃ©mentaires',
+                "Information / instructions complémentaires",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
@@ -801,7 +801,8 @@ class _StationFormPageState extends State<StationFormPage> {
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2C75FF),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
               textStyle: const TextStyle(
                 fontWeight: FontWeight.w600,
               ),

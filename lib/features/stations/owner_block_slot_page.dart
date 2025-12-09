@@ -57,24 +57,24 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       widget.isMemberBooking ? Colors.white : Colors.black;
   String get _pageTitle => widget.isMemberBooking
       ? (widget.isEditing
-            ? 'Modifier ce cr\u00e9neau'
-            : 'Choisir un cr\u00e9neau')
+            ? "Modifier ce créneau"
+            : "Choisir un créneau")
       : (widget.isEditing
-            ? 'Modifier ce cr\u00e9neau'
-            : 'Bloquer un cr\u00e9neau');
+            ? "Modifier ce créneau"
+            : "Bloquer un créneau");
   String get _primaryButtonLabel => widget.isMemberBooking
       ? (widget.isEditing
             ? 'Enregistrer les modifications'
-            : 'R\u00e9server ce cr\u00e9neau')
+            : "Réserver ce créneau")
       : (widget.isEditing
             ? 'Enregistrer les modifications'
-            : 'Bloquer ce cr\u00e9neau');
+            : "Bloquer ce créneau");
   String get _submitErrorText => widget.isMemberBooking
-      ? 'Impossible d\u2019enregistrer la r\u00e9servation.'
-      : 'Impossible d\u2019enregistrer le cr\u00e9neau.';
+      ? "Impossible d\u2019enregistrer la réservation."
+      : "Impossible d\u2019enregistrer le créneau.";
   String get _deleteErrorText => widget.isMemberBooking
-      ? 'Impossible d\u2019annuler ce cr\u00e9neau.'
-      : 'Impossible d\u2019annuler ce cr\u00e9neau.';
+      ? "Impossible d\u2019annuler ce créneau."
+      : "Impossible d\u2019annuler ce créneau.";
   Color get _secondaryButtonColor => widget.isMemberBooking
       ? const Color(0xFF2C75FF)
       : const Color(0xFFFF6B6B);
@@ -150,7 +150,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       setState(() {
         _daySlots = const [];
         _loadingDay = false;
-        _error = 'Impossible de charger les creneaux existants.';
+        _error = "Impossible de charger les créneaux existants.";
       });
       _rebuildAvailability();
     }
@@ -191,7 +191,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
         _endOptions = const [];
         _startTime = '00:00';
         _endTime = '00:00';
-        _error = 'Aucun creneau disponible ce jour-la.';
+        _error = "Aucun créneau disponible ce jour-là.";
       });
       return;
     }
@@ -335,7 +335,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
   Future<void> _saveSlot() async {
     if (_isPastSlot) {
       setState(() {
-        _error = 'Ce creneau est deja termine. Modification impossible.';
+        _error = "Ce créneau est déjà terminé. Modification impossible.";
       });
       return;
     }
@@ -392,7 +392,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     if (slot == null) return;
     if (_isPastSlot) {
       setState(() {
-        _error = 'Impossible d\'annuler un creneau passe.';
+        _error = "Impossible d'annuler un créneau passé.";
       });
       return;
     }
@@ -443,7 +443,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
     final start = tz.TZDateTime.from(startUtc, brusselsLocation);
     final end = tz.TZDateTime.from(endUtc, brusselsLocation);
     if (!end.isAfter(start)) {
-      return 'L heure de fin doit \u00eatre post\u00e9rieure au d\u00e9but.';
+      return "L'heure de fin doit être postérieure au début.";
     }
 
     final recurring = _recurringIntervalsForWeekday(_selectedDate.weekday);
@@ -453,7 +453,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       );
       final ruleEnd = _selectedDate.add(Duration(minutes: interval.endMinutes));
       if (_overlaps(start, end, ruleStart, ruleEnd)) {
-        return 'Ce cr\u00e9neau chevauche une indisponibilite recurente.';
+        return "Ce créneau chevauche une indisponibilité récurente.";
       }
     }
 
@@ -462,7 +462,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       final slotStart = brusselsFromUtc(slot.startAt.toUtc());
       final slotEnd = brusselsFromUtc(slot.endAt.toUtc());
       if (_overlaps(start, end, slotStart, slotEnd)) {
-        return 'Ce cr\u00e9neau chevauche un autre cr\u00e9neau.';
+        return "Ce créneau chevauche un autre créneau.";
       }
     }
 
@@ -546,7 +546,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
               children: [
                 Expanded(
                   child: _TimeDropdown(
-                    label: 'Heure de d\u00e9but',
+                    label: "Heure de début",
                     value: _startTime,
                     options: _startOptions,
                     enabled: _startOptions.isNotEmpty,
@@ -585,7 +585,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Dur\u00e9e totale',
+                    "Durée totale",
                     style: TextStyle(
                       color: _accentForeground,
                       fontWeight: FontWeight.w700,
@@ -622,7 +622,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
-                  'Ce creneau est deja termine. Les actions sont desactivees.',
+                  "Ce créneau est déjà terminé. Les actions sont desactivées.",
                   style: TextStyle(
                     color: Colors.black54,
                     fontWeight: FontWeight.w600,
@@ -659,7 +659,7 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
                   side: BorderSide(color: _secondaryButtonColor),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Annuler ce cr\u00e9neau'),
+                child: const Text("Annuler ce créneau"),
               ),
             ],
           ],
@@ -802,7 +802,7 @@ class _StationHeader extends StatelessWidget {
       station.country,
     ];
     parts.removeWhere((part) => part.trim().isEmpty);
-    if (parts.isEmpty) return 'Adresse non renseignee';
+    if (parts.isEmpty) return "Adresse non renseignée";
     return parts.join(' ');
   }
 }
@@ -967,17 +967,17 @@ const _weekdayLabels = {
 
 const _monthLabels = [
   'janvier',
-  'f\u00e9vrier',
+  "février",
   'mars',
   'avril',
   'mai',
   'juin',
   'juillet',
-  'ao\u00fbt',
+  "août",
   'septembre',
   'octobre',
   'novembre',
-  'd\u00e9cembre',
+  "décembre",
 ];
 
 final List<String> _timeOptions = List<String>.generate(97, (index) {

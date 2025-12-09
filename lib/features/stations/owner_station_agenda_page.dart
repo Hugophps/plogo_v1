@@ -65,8 +65,8 @@ class _OwnerStationAgendaPageState extends State<OwnerStationAgendaPage> {
       _isOwnerViewer ? const Color(0xFFFFB347) : const Color(0xFF2C75FF);
   Color get _accentForeground => _isOwnerViewer ? Colors.black : Colors.white;
   String get _primaryButtonLabel => _isOwnerViewer
-      ? 'Bloquer un cr\u00e9neau'
-      : 'R\u00e9server un cr\u00e9neau';
+      ? "Bloquer un créneau"
+      : "Réserver un créneau";
   String? _currentProfileId;
 
   @override
