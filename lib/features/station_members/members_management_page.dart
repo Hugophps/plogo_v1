@@ -32,7 +32,11 @@ class _MembersManagementPageState extends State<MembersManagementPage> {
   }
 
   Future<List<StationMember>> _loadMembers() {
-    return widget.repository.fetchMembers(widget.station.id);
+    return widget.repository.fetchMembers(widget.station.id).then(
+      (members) => members
+          .where((member) => member.profile.id != widget.station.ownerId)
+          .toList(),
+    );
   }
 
   Future<void> _refresh() async {
