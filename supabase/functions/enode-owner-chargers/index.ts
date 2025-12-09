@@ -127,27 +127,40 @@ async function getProfile(
 }
 
 function normalizeChargers(payload: unknown) {
-  const chargers = Array.isArray(payload)
-    ? payload
-    : (typeof payload === "object" && payload !== null)
-    ? ((payload as Record<string, unknown>)["chargers"] as unknown[])
-    : [];
+  let rawList: unknown[] = [];
+  if (Array.isArray(payload)) {
+    rawList = payload;
+  } else if (payload && typeof payload === "object") {
+    const container = payload as Record<string, unknown>;
+    rawList =
+      (container["chargers"] as unknown[] | undefined) ??
+      (container["data"] as unknown[] | undefined) ??
+      (container["items"] as unknown[] | undefined) ??
+      [];
+  }
 
-  return chargers
-    .filter((item): item is Record<string, unknown> =>
-      item !== null && typeof item === "object"
-    )
-    .map((item) => {
-      const { brand, model, vendor } = extractChargerLabels(item);
-      return {
-        id: (item["id"] ?? item["charger_id"] ?? "")?.toString(),
-        brand,
-        model,
-        vendor,
-        label: [brand, model].filter((part) => part && part.trim().length > 0)
-          .join(" · "),
-        raw: item,
-      };
-    })
-    .filter((charger) => (charger.id?.trim().length ?? 0) > 0);
+  const normalized = [];
+  for (const entry of rawList) {
+    if (!entry || typeof entry !== "object") continue;
+    const item = entry as Record<string, unknown>;
+    const idValue = (item["id"] ??
+      item["charger_id"] ??
+      item["chargerId"])?.toString() ?? "";
+    if (idValue.trim().length === 0) continue;
+
+    const { brand, model, vendor } = extractChargerLabels(item);
+    const parts = [brand.trim(), model.trim()].filter(
+      (part) => part.length > 0,
+    );
+    const label = parts.length > 0 ? parts.join(" · ") : "Borne Enode";
+    normalized.push({
+      id: idValue,
+      brand,
+      model,
+      vendor,
+      label,
+      raw: item,
+    });
+  }
+  return normalized;
 }

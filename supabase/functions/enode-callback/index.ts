@@ -147,27 +147,55 @@ function htmlResponse(
   options: { status?: number; success?: boolean } = {},
 ) {
   const { status = 200, success = true } = options;
-  const title = success ? "Connexion Enode réussie" : "Plogo · Connexion Enode";
-  const autoRedirect = success ? `
-    <script>
-      setTimeout(() => {
-        window.location.href = "${APP_BASE_URL}";
-      }, 2500);
-    </script>` : "";
+  const title = "Plogo · Connexion Enode";
+  const styles = `
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f8fc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      color: #111827;
+      margin: 0;
+    }
+    .card {
+      max-width: 420px;
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(44, 117, 255, 0.15);
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+    p { margin: 0; line-height: 1.5; }
+    a {
+      color: #2c75ff;
+      text-decoration: none;
+    }
+  `;
+  const autoRedirect = success
+    ? `<script>setTimeout(()=>{window.location.href="${APP_BASE_URL}";},2500);</script>`
+    : "";
   const body = `<!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
     <title>${title}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>${styles}</style>
     ${autoRedirect}
   </head>
-  <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f8fc;margin:0;padding:24px;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#111827;">
-    <div style="max-width:420px;background:#fff;border-radius:20px;padding:32px;box-shadow:0 20px 60px rgba(44,117,255,0.15);text-align:center;">
-      <h1 style="font-size:1.4rem;margin-bottom:12px;">Plogo · Connexion Enode</h1>
-      <p style="margin:0;line-height:1.5;">${message}</p>
+  <body>
+    <div class="card">
+      <h1>Plogo · Connexion Enode</h1>
+      <p>${message}</p>
       <p style="margin-top:16px;">
-        <a href="${APP_BASE_URL}" style="color:#2c75ff;text-decoration:none;">Retourner sur Plogo</a>
+        <a href="${APP_BASE_URL}">Retourner sur Plogo</a>
       </p>
     </div>
   </body>
