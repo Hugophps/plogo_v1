@@ -98,15 +98,14 @@ Deno.serve(async (req) => {
     const charger = await fetchCharger(profile.enode_user_id!, chargerId);
     const metadata = charger as Record<string, unknown>;
     const { brand, model, vendor } = extractChargerLabels(metadata);
+    const trimmedVendor = vendor.trim();
     const brandLabel = brand && brand.trim().length > 0
       ? brand.trim()
-      : "Borne Enode";
+      : (trimmedVendor.length > 0 ? trimmedVendor : "Borne Enode");
     const modelLabel = model && model.trim().length > 0
       ? model.trim()
       : "Modèle Enode";
-    const vendorLabel = vendor && vendor.trim().length > 0
-      ? vendor.trim()
-      : null;
+    const vendorLabel = trimmedVendor.length > 0 ? trimmedVendor : null;
     const now = new Date().toISOString();
 
     const { error: updateError } = await supabase
@@ -247,12 +246,23 @@ async function ensureSingleEnodeStation(
 async function fetchCharger(userId: string, chargerId: string) {
   try {
     const charger = await enodeJson(
-      `/users/${userId}/chargers/${chargerId}`,
+      `/chargers/${chargerId}`,
       { method: "GET" },
       undefined,
       "Impossible de récupérer la borne sélectionnée sur Enode.",
     );
     if (charger && typeof charger === "object") {
+      const ownerId = (charger as Record<string, unknown>)["userId"] ??
+        (charger as Record<string, unknown>)["user_id"];
+      if (
+        typeof ownerId === "string" && ownerId.trim().length > 0 &&
+        ownerId.trim() !== userId
+      ) {
+        throw new ResponseError(
+          "La borne sélectionnée n'appartient pas à votre compte Enode.",
+          404,
+        );
+      }
       return charger;
     }
     throw new Error("empty");

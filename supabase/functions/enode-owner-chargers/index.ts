@@ -150,12 +150,11 @@ function normalizeChargers(payload: unknown) {
     const labels = extractChargerLabels(item);
     const brandLabel = labels.brand.trim();
     const modelLabel = labels.model.trim();
-    const friendlyName = (item["name"] ??
-      item["charger_name"] ??
-      item["product_name"] ??
-      item["display_name"])?.toString().trim() ?? "";
+    const friendlyName = labels.friendlyName?.trim() ?? "";
 
-    const labelParts = [brandLabel, modelLabel].filter((part) => part.length > 0);
+    const labelParts = [brandLabel, modelLabel].filter((part) =>
+      part.length > 0
+    );
     const fallbackLabel = labelParts.length > 0
       ? labelParts.join(" · ")
       : "Borne Enode";

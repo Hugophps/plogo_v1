@@ -20,6 +20,32 @@ export const ENODE_SCOPES = scopeEnv
   ? scopeEnv.split(",").map((scope) => scope.trim()).filter((scope) => scope)
   : ["charger:read:data", "charger:control:charging"];
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function firstNonEmptyString(
+  sources: Array<Record<string, unknown> | null>,
+  keys: string[],
+): string {
+  for (const source of sources) {
+    if (!source) continue;
+    for (const key of keys) {
+      const rawValue = source[key];
+      if (typeof rawValue === "string") {
+        const trimmed = rawValue.trim();
+        if (trimmed.length > 0) {
+          return trimmed;
+        }
+      }
+    }
+  }
+  return "";
+}
+
 export { ENODE_REDIRECT_URI };
 
 type TokenCache = { token: string; expiresAt: number } | null;
@@ -208,32 +234,47 @@ export async function verifyStateToken<T = Record<string, unknown>>(
 }
 
 export function extractChargerLabels(metadata: Record<string, unknown>) {
-  const vendorLabel = normalizeVendor(metadata["vendor"]);
-  const brandCandidate = metadata["brand"] ??
-    metadata["manufacturer"] ??
-    (vendorLabel.trim().length > 0 ? vendorLabel : null);
+  const information = asRecord(metadata["information"]);
 
-  const friendlyName = metadata["name"] ??
-    metadata["charger_name"] ??
-    metadata["display_name"] ??
-    metadata["product_name"] ??
-    metadata["label"];
-  const modelCandidate = metadata["model"] ??
-    friendlyName ??
-    metadata["product_label"] ??
-    metadata["id"];
+  const vendorLabel = normalizeVendor(
+    metadata["vendor"] ?? information?.["vendor"] ?? metadata["manufacturer"],
+  );
 
-  const brandLabel = typeof brandCandidate === "string"
-    ? brandCandidate.trim()
-    : "";
-  const modelLabel = typeof modelCandidate === "string"
-    ? modelCandidate.trim()
-    : "";
+  const brandLabel = firstNonEmptyString(
+    [information, metadata],
+    ["brand", "manufacturer", "maker"],
+  ) || vendorLabel;
+
+  const modelLabel = firstNonEmptyString(
+    [information, metadata],
+    [
+      "model",
+      "product_label",
+      "product_name",
+      "hardware_model",
+      "serialNumber",
+      "type",
+    ],
+  );
+
+  const friendlyName = firstNonEmptyString(
+    [information, metadata],
+    [
+      "displayName",
+      "siteName",
+      "name",
+      "label",
+      "charger_name",
+      "product_name",
+      "deviceName",
+    ],
+  );
 
   return {
     brand: brandLabel,
     model: modelLabel,
-    vendor: vendorLabel,
+    vendor: vendorLabel.trim(),
+    friendlyName,
   };
 }
 

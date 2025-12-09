@@ -740,9 +740,13 @@ class _StationFormPageState extends State<StationFormPage> {
     final station = _currentStation;
     final brand = (station?.chargerBrand ?? '').trim();
     final model = (station?.chargerModel ?? '').trim();
+    final chargerName = station?.chargerDisplayName;
     final hasCharger = brand.isNotEmpty || model.isNotEmpty;
     final subtitle = hasCharger
-        ? '${brand.isNotEmpty ? brand : 'Borne'} · ${model.isNotEmpty ? model : 'Modèle'}'
+        ? [
+            if (chargerName != null && chargerName.isNotEmpty) chargerName,
+            station?.chargerLabel ?? 'Borne détectée sur Enode'
+          ].join('\n')
         : "Une fois la connexion établie, sélectionnez la borne à associer à votre station.";
 
     return Container(

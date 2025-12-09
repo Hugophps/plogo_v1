@@ -169,6 +169,24 @@ extension StationChargerLabel on Station {
   }
 }
 
+extension StationEnodeMetadataDetails on Station {
+  String? get chargerDisplayName {
+    final metadata = enodeMetadata;
+    if (metadata == null) return null;
+    final info = _asStringMap(metadata['information']);
+    return _firstNonEmptyString([
+      info?['displayName'],
+      info?['siteName'],
+      info?['name'],
+      info?['label'],
+      metadata['display_name'],
+      metadata['site_name'],
+      metadata['name'],
+      metadata['label'],
+    ]);
+  }
+}
+
 extension StationPricing on Station {
   String? get priceLabel {
     final value = pricePerKwh;
@@ -177,4 +195,26 @@ extension StationPricing on Station {
     final text = isInt ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
     return '$text €/kWh';
   }
+}
+
+String? _firstNonEmptyString(Iterable<dynamic> values) {
+  for (final value in values) {
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) {
+        return trimmed;
+      }
+    }
+  }
+  return null;
+}
+
+Map<String, dynamic>? _asStringMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return Map<String, dynamic>.from(value as Map);
+  }
+  return null;
 }

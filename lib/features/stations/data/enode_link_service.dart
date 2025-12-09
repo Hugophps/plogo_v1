@@ -65,10 +65,10 @@ class EnodeLinkService {
         final idValue = (json['id'] ?? '').toString().trim();
         if (idValue.isEmpty) return null;
         final vendor = json['vendor'];
+        final rawLabel = (json['label'] as String? ?? '').trim();
         return LinkedEnodeCharger(
           id: idValue,
-          label:
-              (json['label'] as String? ?? 'Borne Enode').trim(),
+          label: rawLabel.isNotEmpty ? rawLabel : 'Borne Enode',
           brand: (json['brand'] as String? ?? '').trim(),
           model: (json['model'] as String? ?? '').trim(),
           vendor: vendor is String ? vendor.trim() : null,
