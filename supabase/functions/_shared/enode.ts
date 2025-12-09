@@ -249,11 +249,12 @@ export function extractChargerLabels(metadata: Record<string, unknown>) {
     [information, metadata],
     [
       "model",
+      "model_name",
       "product_label",
       "product_name",
       "hardware_model",
-      "serialNumber",
-      "type",
+      "hardwareName",
+      "variant",
     ],
   );
 

@@ -157,33 +157,90 @@ class Station {
 }
 
 extension StationChargerLabel on Station {
+  Map<String, dynamic>? get _enodeInfo =>
+      _asStringMap(enodeMetadata?['information']);
+
+  String? _metadataLookup(List<String> keys) {
+    final info = _enodeInfo;
+    final metadata = enodeMetadata;
+    final values = <dynamic>[];
+    if (info != null) {
+      for (final key in keys) {
+        values.add(info[key]);
+      }
+    }
+    if (metadata != null) {
+      for (final key in keys) {
+        values.add(metadata[key]);
+      }
+    }
+    return _firstNonEmptyString(values);
+  }
+
+  String? get _metadataBrand =>
+      _metadataLookup(['brand', 'manufacturer', 'maker', 'vendor']);
+
+  String? get _metadataModel => _metadataLookup([
+        'model',
+        'model_name',
+        'product_label',
+        'product_name',
+        'hardware_model',
+        'variant',
+      ]);
+
+  String? get _metadataDisplayName => _firstNonEmptyString([
+        _metadataLookup([
+          'displayName',
+          'siteName',
+          'charger_name',
+          'name',
+          'label',
+        ]),
+        enodeMetadata?['display_name'],
+        enodeMetadata?['site_name'],
+        enodeMetadata?['name'],
+        enodeMetadata?['label'],
+      ]);
+
+  String? get _effectiveBrand {
+    final storedBrand = (chargerBrand ?? '').trim();
+    if (storedBrand.isNotEmpty) return storedBrand;
+    final vendor = (chargerVendor ?? '').trim();
+    if (vendor.isNotEmpty) return vendor;
+    final metadataBrand = (_metadataBrand ?? '').trim();
+    return metadataBrand.isNotEmpty ? metadataBrand : null;
+  }
+
+  String? get _effectiveModel {
+    final storedModel = (chargerModel ?? '').trim();
+    final metadataModel = (_metadataModel ?? '').trim();
+    if (storedModel.isEmpty && metadataModel.isNotEmpty) {
+      return metadataModel;
+    }
+    if (_looksLikeDeviceId(storedModel) && metadataModel.isNotEmpty) {
+      return metadataModel;
+    }
+    return storedModel.isNotEmpty ? storedModel : null;
+  }
+
   String? get chargerLabel {
-    final brand = (chargerBrand ?? '').trim();
-    final model = (chargerModel ?? '').trim();
-    final hasBrand = brand.isNotEmpty;
-    final hasModel = model.isNotEmpty;
+    final brand = _effectiveBrand;
+    final model = _effectiveModel;
+    final hasBrand = brand != null && brand.isNotEmpty;
+    final hasModel = model != null && model.isNotEmpty;
     if (!hasBrand && !hasModel) return null;
     if (!hasBrand) return model;
     if (!hasModel) return brand;
     return '$brand · $model';
   }
-}
 
-extension StationEnodeMetadataDetails on Station {
   String? get chargerDisplayName {
-    final metadata = enodeMetadata;
-    if (metadata == null) return null;
-    final info = _asStringMap(metadata['information']);
-    return _firstNonEmptyString([
-      info?['displayName'],
-      info?['siteName'],
-      info?['name'],
-      info?['label'],
-      metadata['display_name'],
-      metadata['site_name'],
-      metadata['name'],
-      metadata['label'],
-    ]);
+    final name = _metadataDisplayName;
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+    return (chargerBrand ?? '').trim().isNotEmpty ? chargerBrand : null;
   }
 }
 
@@ -217,4 +274,15 @@ Map<String, dynamic>? _asStringMap(dynamic value) {
     return Map<String, dynamic>.from(value as Map);
   }
   return null;
+}
+
+bool _looksLikeDeviceId(String value) {
+  if (value.isEmpty) return false;
+  final uuidPattern =
+      RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+  if (uuidPattern.hasMatch(value)) {
+    return true;
+  }
+  final hexPattern = RegExp(r'^[0-9a-fA-F-]{20,}$');
+  return hexPattern.hasMatch(value);
 }
