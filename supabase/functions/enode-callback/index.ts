@@ -115,10 +115,12 @@ Deno.serve(async (req) => {
 
     await ensureMembershipApproved(supabase, station.id, profile.id, now);
 
-    return htmlResponse(
-      "Connexion Enode réussie. Vous pouvez fermer cette fenêtre et revenir sur Plogo.",
-      { status: 200, success: true },
-    );
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: APP_BASE_URL,
+      },
+    });
   } catch (error) {
     if (error instanceof ResponseError) {
       return htmlResponse(error.message, { status: 400, success: false });

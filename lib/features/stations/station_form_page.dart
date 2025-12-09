@@ -911,11 +911,7 @@ class _EnodeChargerPicker extends StatelessWidget {
                       charger.label,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: Text(
-                      charger.model.isNotEmpty
-                          ? charger.model
-                          : 'Borne compatible Enode',
-                    ),
+                    subtitle: Text(charger.description),
                     onTap: () => Navigator.of(context).pop(charger),
                   );
                 },

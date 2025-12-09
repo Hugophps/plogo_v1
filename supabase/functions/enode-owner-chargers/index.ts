@@ -149,16 +149,22 @@ function normalizeChargers(payload: unknown) {
     if (idValue.trim().length === 0) continue;
 
     const { brand, model, vendor } = extractChargerLabels(item);
-    const parts = [brand.trim(), model.trim()].filter(
-      (part) => part.length > 0,
+    const friendlyName = (item["name"] ??
+      item["charger_name"] ??
+      item["product_name"] ??
+      item["display_name"])?.toString() ?? "";
+    const parts = [brand.trim(), model.trim()].filter((part) =>
+      part.length > 0
     );
     const label = parts.length > 0 ? parts.join(" · ") : "Borne Enode";
+    const displayName =
+      friendlyName.trim().length > 0 ? friendlyName.trim() : label;
     normalized.push({
       id: idValue,
       brand,
       model,
       vendor,
-      label,
+      label: displayName,
       raw: item,
     });
   }

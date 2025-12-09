@@ -67,6 +67,7 @@ class EnodeLinkService {
               label: (json['label'] ?? 'Borne Enode').toString(),
               brand: (json['brand'] ?? '').toString(),
               model: (json['model'] ?? '').toString(),
+              vendor: (json['vendor'] ?? '').toString(),
             ),
           )
           .where((charger) => charger.id.isNotEmpty)
@@ -113,10 +114,20 @@ class LinkedEnodeCharger {
     required this.label,
     required this.brand,
     required this.model,
+    this.vendor,
   });
 
   final String id;
   final String label;
   final String brand;
   final String model;
+   final String? vendor;
+
+  String get description {
+    final parts = [
+      brand.trim(),
+      model.trim(),
+    ].where((part) => part.isNotEmpty).toList();
+    return parts.isEmpty ? 'Borne détectée sur Enode' : parts.join(' · ');
+  }
 }
