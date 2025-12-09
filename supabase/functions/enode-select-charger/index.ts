@@ -245,38 +245,26 @@ async function ensureSingleEnodeStation(
 }
 
 async function fetchCharger(userId: string, chargerId: string) {
-  const chargers = await enodeJson(
-    `/users/${userId}/chargers`,
-    { method: "GET" },
-    undefined,
-    "Impossible de récupérer les bornes Enode.",
-  );
-
-  if (Array.isArray(chargers)) {
-    const found = chargers.find((item) => {
-      const id = (item as Record<string, unknown>)["id"] ??
-        (item as Record<string, unknown>)["charger_id"];
-      return id?.toString() === chargerId;
-    });
-    if (found) return found;
-  }
-
-  if (chargers && typeof chargers === "object") {
-    const list = (chargers as Record<string, unknown>)["chargers"];
-    if (Array.isArray(list)) {
-      const match = list.find((item) => {
-        const id = (item as Record<string, unknown>)["id"] ??
-          (item as Record<string, unknown>)["charger_id"];
-        return id?.toString() === chargerId;
-      });
-      if (match) return match;
+  try {
+    const charger = await enodeJson(
+      `/users/${userId}/chargers/${chargerId}`,
+      { method: "GET" },
+      undefined,
+      "Impossible de récupérer la borne sélectionnée sur Enode.",
+    );
+    if (charger && typeof charger === "object") {
+      return charger;
     }
+    throw new Error("empty");
+  } catch (error) {
+    if (error instanceof EnodeApiError && error.status === 404) {
+      throw new ResponseError(
+        "La borne sélectionnée n'appartient pas à votre compte Enode.",
+        404,
+      );
+    }
+    throw error;
   }
-
-  throw new ResponseError(
-    "La borne sélectionnée n'appartient pas à votre compte Enode.",
-    404,
-  );
 }
 
 async function ensureMembershipApproved(

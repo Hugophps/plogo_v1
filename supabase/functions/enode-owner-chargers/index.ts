@@ -139,33 +139,34 @@ function normalizeChargers(payload: unknown) {
       [];
   }
 
-  const normalized = [];
+  const normalized: Array<Record<string, unknown>> = [];
   for (const entry of rawList) {
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Record<string, unknown>;
-    const idValue = (item["id"] ??
-      item["charger_id"] ??
-      item["chargerId"])?.toString() ?? "";
-    if (idValue.trim().length === 0) continue;
+    const rawId = item["id"] ?? item["charger_id"] ?? item["chargerId"];
+    const idValue = rawId ? rawId.toString().trim() : "";
+    if (!idValue) continue;
 
-    const { brand, model, vendor } = extractChargerLabels(item);
+    const labels = extractChargerLabels(item);
+    const brandLabel = labels.brand.trim();
+    const modelLabel = labels.model.trim();
     const friendlyName = (item["name"] ??
       item["charger_name"] ??
       item["product_name"] ??
-      item["display_name"])?.toString() ?? "";
-    const parts = [brand.trim(), model.trim()].filter((part) =>
-      part.length > 0
-    );
-    const label = parts.length > 0 ? parts.join(" · ") : "Borne Enode";
-    const displayName =
-      friendlyName.trim().length > 0 ? friendlyName.trim() : label;
+      item["display_name"])?.toString().trim() ?? "";
+
+    const labelParts = [brandLabel, modelLabel].filter((part) => part.length > 0);
+    const fallbackLabel = labelParts.length > 0
+      ? labelParts.join(" · ")
+      : "Borne Enode";
+    const displayLabel = friendlyName.length > 0 ? friendlyName : fallbackLabel;
+
     normalized.push({
       id: idValue,
-      brand,
-      model,
-      vendor,
-      label: displayName,
-      raw: item,
+      brand: brandLabel,
+      model: modelLabel,
+      vendor: labels.vendor?.trim() ?? "",
+      label: displayLabel,
     });
   }
   return normalized;

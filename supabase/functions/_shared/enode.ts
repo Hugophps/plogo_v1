@@ -209,16 +209,26 @@ export async function verifyStateToken<T = Record<string, unknown>>(
 
 export function extractChargerLabels(metadata: Record<string, unknown>) {
   const vendorLabel = normalizeVendor(metadata["vendor"]);
-  const brand = metadata["brand"] ??
+  const brandCandidate = metadata["brand"] ??
     metadata["manufacturer"] ??
-    (vendorLabel ? vendorLabel : null);
-  const model = metadata["model"] ??
-    metadata["name"] ??
+    (vendorLabel.trim().length > 0 ? vendorLabel : null);
+
+  const friendlyName = metadata["name"] ??
+    metadata["charger_name"] ??
+    metadata["display_name"] ??
     metadata["product_name"] ??
+    metadata["label"];
+  const modelCandidate = metadata["model"] ??
+    friendlyName ??
+    metadata["product_label"] ??
     metadata["id"];
 
-  const brandLabel = typeof brand === "string" ? brand.trim() : "";
-  const modelLabel = typeof model === "string" ? model.trim() : "";
+  const brandLabel = typeof brandCandidate === "string"
+    ? brandCandidate.trim()
+    : "";
+  const modelLabel = typeof modelCandidate === "string"
+    ? modelCandidate.trim()
+    : "";
 
   return {
     brand: brandLabel,

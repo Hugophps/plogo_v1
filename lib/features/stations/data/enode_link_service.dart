@@ -61,17 +61,19 @@ class EnodeLinkService {
       }
       return list
           .whereType<Map>()
-          .map(
-            (json) => LinkedEnodeCharger(
-              id: (json['id'] ?? '').toString(),
-              label: (json['label'] ?? 'Borne Enode').toString(),
-              brand: (json['brand'] ?? '').toString(),
-              model: (json['model'] ?? '').toString(),
-              vendor: (json['vendor'] ?? '').toString(),
-            ),
-          )
-          .where((charger) => charger.id.isNotEmpty)
-          .toList();
+          .map((json) {
+        final idValue = (json['id'] ?? '').toString().trim();
+        if (idValue.isEmpty) return null;
+        final vendor = json['vendor'];
+        return LinkedEnodeCharger(
+          id: idValue,
+          label:
+              (json['label'] as String? ?? 'Borne Enode').trim(),
+          brand: (json['brand'] as String? ?? '').trim(),
+          model: (json['model'] as String? ?? '').trim(),
+          vendor: vendor is String ? vendor.trim() : null,
+        );
+      }).whereType<LinkedEnodeCharger>().toList();
     } on FunctionException catch (error) {
       throw Exception(
         error.details ?? "Impossible de récupérer vos bornes Enode.",
@@ -121,13 +123,12 @@ class LinkedEnodeCharger {
   final String label;
   final String brand;
   final String model;
-   final String? vendor;
+  final String? vendor;
 
   String get description {
-    final parts = [
-      brand.trim(),
-      model.trim(),
-    ].where((part) => part.isNotEmpty).toList();
+    final parts = <String>[];
+    if (brand.isNotEmpty) parts.add(brand);
+    if (model.isNotEmpty) parts.add(model);
     return parts.isEmpty ? 'Borne détectée sur Enode' : parts.join(' · ');
   }
 }
