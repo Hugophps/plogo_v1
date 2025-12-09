@@ -47,6 +47,7 @@ class _StationFormPageState extends State<StationFormPage> {
   bool _saving = false;
   bool _linkingEnode = false;
   bool _refreshingStation = false;
+  bool _loadingChargers = false;
   Uint8List? _photoBytes;
   String? _remotePhotoUrl;
   GooglePlaceDetails? _stationAddress;
@@ -382,7 +383,7 @@ class _StationFormPageState extends State<StationFormPage> {
     }
   }
 
-  Future<void> _refreshStationStatus() async {
+  Future<void> _refreshStationStatus({bool showToast = true}) async {
     final stationId = _currentStation?.id ?? widget.initialStation?.id;
     if (stationId == null || _refreshingStation) {
       if (stationId == null && mounted) {
@@ -411,11 +412,13 @@ class _StationFormPageState extends State<StationFormPage> {
         _currentStation = updated;
         _remotePhotoUrl = updated.photoUrl ?? _remotePhotoUrl;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Station mise à jour.'),
-        ),
-      );
+      if (showToast) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Station mise à jour.'),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -423,6 +426,69 @@ class _StationFormPageState extends State<StationFormPage> {
       );
     } finally {
       if (mounted) setState(() => _refreshingStation = false);
+    }
+  }
+
+  Future<void> _openChargerSelection() async {
+    final stationId = _currentStation?.id ?? widget.initialStation?.id;
+    if (stationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Créez d’abord la station avant de sélectionner une borne Enode.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _loadingChargers = true);
+    try {
+      final chargers = await _linkService.fetchLinkedChargers();
+      if (!mounted) return;
+      if (chargers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Aucune borne Enode détectée. Terminez la connexion puis réessayez.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final selected = await showModalBottomSheet<LinkedEnodeCharger>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return _EnodeChargerPicker(
+            chargers: chargers,
+          );
+        },
+      );
+      if (selected == null) return;
+
+      await _linkService.attachCharger(
+        stationId: stationId,
+        chargerId: selected.id,
+      );
+      await _refreshStationStatus(showToast: false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Borne sélectionnée : ${selected.label}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sélection impossible: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingChargers = false);
     }
   }
 
@@ -677,7 +743,7 @@ class _StationFormPageState extends State<StationFormPage> {
     final hasCharger = brand.isNotEmpty || model.isNotEmpty;
     final subtitle = hasCharger
         ? '${brand.isNotEmpty ? brand : 'Borne'} · ${model.isNotEmpty ? model : 'Modèle'}'
-        : 'Connectez votre borne officielle via Enode pour remplir automatiquement ces champs.';
+        : "Une fois la connexion établie, sélectionnez la borne à associer à votre station.";
 
     return Container(
       width: double.infinity,
@@ -751,19 +817,114 @@ class _StationFormPageState extends State<StationFormPage> {
                 : const Text('Connecter ma borne via Enode'),
           ),
           const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed:
-                (_currentStation == null || _refreshingStation) ? null : _refreshStationStatus,
-            icon: _refreshingStation
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            label: const Text('Actualiser le statut'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: (_currentStation == null ||
+                          _loadingChargers ||
+                          _linkingEnode)
+                      ? null
+                      : _openChargerSelection,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2C75FF),
+                    side: const BorderSide(color: Color(0xFF2C75FF)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: _loadingChargers
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Sélectionner la borne Enode'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                onPressed: (_currentStation == null || _refreshingStation)
+                    ? null
+                    : _refreshStationStatus,
+                icon: _refreshingStation
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                tooltip: 'Actualiser la station',
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _EnodeChargerPicker extends StatelessWidget {
+  const _EnodeChargerPicker({required this.chargers});
+
+  final List<LinkedEnodeCharger> chargers;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0E3EB),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Sélectionnez la borne détectée',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemBuilder: (context, index) {
+                  final charger = chargers[index];
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.ev_station,
+                      color: Color(0xFF2C75FF),
+                    ),
+                    title: Text(
+                      charger.label,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      charger.model.isNotEmpty
+                          ? charger.model
+                          : 'Borne compatible Enode',
+                    ),
+                    onTap: () => Navigator.of(context).pop(charger),
+                  );
+                },
+                separatorBuilder: (_, __) => const Divider(),
+                itemCount: chargers.length,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

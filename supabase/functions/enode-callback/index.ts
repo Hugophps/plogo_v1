@@ -47,10 +47,13 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  const state = url.searchParams.get("state");
+  const state = extractStateToken(url);
 
   if (!state) {
-    return htmlResponse("State manquant dans la redirection Enode.", 400);
+    return htmlResponse("Lien Enode invalide : identifiant de session absent.", {
+      status: 400,
+      success: false,
+    });
   }
 
   try {
@@ -114,10 +117,11 @@ Deno.serve(async (req) => {
 
     return htmlResponse(
       "Connexion Enode réussie. Vous pouvez fermer cette fenêtre et revenir sur Plogo.",
+      { status: 200, success: true },
     );
   } catch (error) {
     if (error instanceof ResponseError) {
-      return htmlResponse(error.message, 400);
+      return htmlResponse(error.message, { status: 400, success: false });
     }
     if (error instanceof EnodeApiError) {
       console.error("enode-callback enode error", {
@@ -126,64 +130,44 @@ Deno.serve(async (req) => {
       });
       return htmlResponse(
         "Connexion Enode indisponible pour le moment. Réessayez plus tard.",
-        502,
+        { status: 502, success: false },
       );
     }
 
     console.error("enode-callback error", error);
     return htmlResponse(
       "Une erreur inattendue est survenue pendant la connexion Enode.",
-      500,
+      { status: 500, success: false },
     );
   }
 });
 
-function htmlResponse(message: string, status = 200) {
+function htmlResponse(
+  message: string,
+  options: { status?: number; success?: boolean } = {},
+) {
+  const { status = 200, success = true } = options;
+  const title = success ? "Connexion Enode réussie" : "Plogo · Connexion Enode";
+  const autoRedirect = success ? `
+    <script>
+      setTimeout(() => {
+        window.location.href = "${APP_BASE_URL}";
+      }, 2500);
+    </script>` : "";
   const body = `<!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <title>Plogo · Connexion Enode</title>
+    <title>${title}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f7f8fc;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        padding: 24px;
-        color: #111827;
-      }
-      .card {
-        max-width: 420px;
-        background: #fff;
-        border-radius: 20px;
-        padding: 32px;
-        box-shadow: 0 20px 60px rgba(44, 117, 255, 0.15);
-        text-align: center;
-      }
-      h1 {
-        font-size: 1.4rem;
-        margin-bottom: 12px;
-      }
-      p {
-        margin: 0;
-        line-height: 1.5;
-      }
-      a {
-        color: #2c75ff;
-        text-decoration: none;
-      }
-    </style>
+    ${autoRedirect}
   </head>
-  <body>
-    <div class="card">
-      <h1>Plogo · Connexion Enode</h1>
-      <p>${message}</p>
-      <p style="margin-top:16px">
-        <a href="${APP_BASE_URL}">Retourner sur Plogo</a>
+  <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f8fc;margin:0;padding:24px;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#111827;">
+    <div style="max-width:420px;background:#fff;border-radius:20px;padding:32px;box-shadow:0 20px 60px rgba(44,117,255,0.15);text-align:center;">
+      <h1 style="font-size:1.4rem;margin-bottom:12px;">Plogo · Connexion Enode</h1>
+      <p style="margin:0;line-height:1.5;">${message}</p>
+      <p style="margin-top:16px;">
+        <a href="${APP_BASE_URL}" style="color:#2c75ff;text-decoration:none;">Retourner sur Plogo</a>
       </p>
     </div>
   </body>
@@ -193,6 +177,22 @@ function htmlResponse(message: string, status = 200) {
     status,
     headers: HTML_HEADERS,
   });
+}
+
+function extractStateToken(url: URL): string | null {
+  const param = url.searchParams.get("state") ??
+    url.searchParams.get("token");
+  if (param && param.trim().length > 0) {
+    return param.trim();
+  }
+
+  const segments = url.pathname.split("/").filter(Boolean);
+  const last = segments[segments.length - 1];
+  if (last && last !== "enode-callback") {
+    return last;
+  }
+
+  return null;
 }
 
 class ResponseError extends Error {}

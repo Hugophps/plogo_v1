@@ -94,6 +94,13 @@ Deno.serve(async (req) => {
     await ensureNoOtherEnodeStation(supabase, profile.id, stationId);
 
     const enodeUserId = await ensureEnodeUserId(supabase, profile);
+    const stateToken = await createStateToken({
+      profile_id: profile.id,
+      station_id: stationId,
+    });
+
+    const redirectUriWithState = buildRedirectUri(stateToken);
+
     const session = await enodeJson(
       `/users/${enodeUserId}/link`,
       {
@@ -102,7 +109,7 @@ Deno.serve(async (req) => {
           vendorType: "charger",
           scopes: ENODE_SCOPES,
           language: "fr-FR",
-          redirectUri: ENODE_REDIRECT_URI,
+          redirectUri: redirectUriWithState,
         }),
       },
       undefined,
@@ -249,4 +256,27 @@ async function ensureEnodeUserId(
   }
 
   return fallbackId;
+}
+
+function buildRedirectUri(stateToken: string) {
+  const placeholderMatch =
+    ENODE_REDIRECT_URI.match(/\{(state|token)\}/i);
+  if (placeholderMatch) {
+    return ENODE_REDIRECT_URI.replace(
+      placeholderMatch[0],
+      stateToken,
+    );
+  }
+
+  try {
+    const url = new URL(ENODE_REDIRECT_URI);
+    const search = url.search;
+    url.search = "";
+    const trimmedPath = url.pathname.replace(/\/+$/, "");
+    const base = `${url.origin}${trimmedPath}`;
+    return `${base}/${stateToken}${search}`;
+  } catch (_) {
+    const trimmed = ENODE_REDIRECT_URI.replace(/\/+$/, "");
+    return `${trimmed}/${stateToken}`;
+  }
 }
