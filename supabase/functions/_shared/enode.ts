@@ -167,6 +167,64 @@ export async function enodeJson(
   return json;
 }
 
+type ChargerActionKind = "START" | "STOP";
+
+export async function controlChargerCharging(
+  chargerId: string,
+  action: ChargerActionKind,
+) {
+  return await enodeJson(
+    `/chargers/${chargerId}/charging`,
+    {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    },
+    undefined,
+    action === "START"
+      ? "Impossible de démarrer la charge Enode."
+      : "Impossible d'arrêter la charge Enode.",
+  );
+}
+
+export async function fetchChargerSessionsStats(
+  enodeUserId: string,
+  params: {
+    startDate: string;
+    endDate?: string;
+    chargerId: string;
+  },
+) {
+  const query: Record<string, string> = {
+    startDate: params.startDate,
+    type: "charger",
+    id: params.chargerId,
+  };
+  if (params.endDate) {
+    query.endDate = params.endDate;
+  }
+
+  const payload = await enodeJson(
+    `/users/${enodeUserId}/statistics/charging/sessions`,
+    { method: "GET" },
+    query,
+    "Impossible de récupérer les données de session sur Enode.",
+  );
+
+  if (Array.isArray(payload)) {
+    return payload as Array<Record<string, unknown>>;
+  }
+
+  if (payload && typeof payload === "object") {
+    const container = payload as Record<string, unknown>;
+    const data = container["data"];
+    if (Array.isArray(data)) {
+      return data as Array<Record<string, unknown>>;
+    }
+  }
+
+  return [];
+}
+
 let stateKeyPromise: Promise<CryptoKey> | null = null;
 
 async function getStateKey(): Promise<CryptoKey> {
