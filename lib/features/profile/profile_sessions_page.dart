@@ -62,6 +62,24 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
       backgroundColor: const Color(0xFFF7F8FC),
       appBar: AppBar(
         title: const Text('Sessions de charges'),
+        actions: [
+          IconButton(
+            tooltip: 'Filtres',
+            onPressed: () {
+              setState(() {
+                _state.showFilters = !_state.showFilters;
+              });
+            },
+            icon: Icon(
+              _state.hasActiveFilter
+                  ? Icons.filter_alt
+                  : Icons.filter_alt_outlined,
+            ),
+            color: _state.showFilters || _state.hasActiveFilter
+                ? const Color(0xFF2C75FF)
+                : null,
+          ),
+        ],
         backgroundColor: Colors.transparent,
         centerTitle: true,
         elevation: 0,
@@ -104,22 +122,23 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
 
     final payments = state.items;
     final showEmptyState = payments.isEmpty;
-    final extraItems = showEmptyState ? 1 : 0;
+    final filterCount = state.showFilters ? 1 : 0;
+    final emptyExtra = showEmptyState ? 1 : 0;
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      itemCount: payments.length + 1 + extraItems,
+      itemCount: payments.length + filterCount + emptyExtra,
       itemBuilder: (context, index) {
-        if (index == 0) {
+        if (filterCount == 1 && index == 0) {
           return _buildFilterHeader(role);
         }
 
-        if (showEmptyState && index == 1) {
+        if (showEmptyState && index == filterCount) {
           return _buildEmptyState(role);
         }
 
-        final paymentIndex = index - 1 - extraItems;
+        final paymentIndex = index - filterCount;
         final payment = payments[paymentIndex];
         final slotKey = payment.slotId ?? '';
         return _PaymentCard(
@@ -265,7 +284,12 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
     );
     final filtered = _state.allItems.where((payment) {
       final start = payment.slot.startAt;
-      return !start.isBefore(from);
+      if (start.isBefore(from)) return false;
+      final selectedStatus = _state.statusFilter;
+      if (selectedStatus != null && payment.status != selectedStatus) {
+        return false;
+      }
+      return true;
     }).toList();
 
     if (rebuild) {
@@ -279,11 +303,28 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
   }
 
   Widget _buildFilterHeader(BookingPaymentRole role) {
+    if (!_state.showFilters) {
+      return const SizedBox.shrink();
+    }
+
     final dateText = _formatDate(_state.fromDate);
     final showReset = !_isDefaultFromDate(_state.fromDate);
+    final hasStatusFilter = _state.statusFilter != null;
     final subtitle = role == BookingPaymentRole.driver
         ? "Affiche vos sessions réservées depuis cette date."
         : "Affiche les sessions de vos membres depuis cette date.";
+    final statusItems = <DropdownMenuItem<BookingPaymentStatus?>>[
+      const DropdownMenuItem(
+        value: null,
+        child: Text('Tous les statuts'),
+      ),
+      ...BookingPaymentStatus.values.map(
+        (status) => DropdownMenuItem(
+          value: status,
+          child: Text(_statusFilterLabel(status, role)),
+        ),
+      ),
+    ];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -325,6 +366,31 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
                   ),
               ],
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<BookingPaymentStatus?>(
+              value: _state.statusFilter,
+              decoration: const InputDecoration(
+                labelText: 'Statut',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              items: statusItems,
+              onChanged: (value) {
+                setState(() => _state.statusFilter = value);
+                _applyFilters();
+              },
+            ),
+            if (hasStatusFilter)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    setState(() => _state.statusFilter = null);
+                    _applyFilters();
+                  },
+                  child: const Text('Effacer le statut'),
+                ),
+              ),
           ],
         ),
       ),
@@ -351,18 +417,33 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
     );
   }
 
-  bool _isDefaultFromDate(DateTime date) {
-    final defaultDate = _defaultFromDate();
-    return date.year == defaultDate.year &&
-        date.month == defaultDate.month &&
-        date.day == defaultDate.day;
-  }
+  bool _isDefaultFromDate(DateTime date) => _isDefaultDateStatic(date);
 
   String _formatDate(DateTime date) {
     return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year}';
   }
 
   String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  String _statusFilterLabel(
+      BookingPaymentStatus status, BookingPaymentRole role) {
+    switch (status) {
+      case BookingPaymentStatus.upcoming:
+        return 'À venir';
+      case BookingPaymentStatus.inProgress:
+        return 'En cours';
+      case BookingPaymentStatus.toPay:
+        return role == BookingPaymentRole.driver
+            ? 'À payer'
+            : 'En attente de paiement';
+      case BookingPaymentStatus.driverMarked:
+        return role == BookingPaymentRole.driver
+            ? 'Paiement indiqué'
+            : 'Paiement signalé';
+      case BookingPaymentStatus.paid:
+        return 'Paiement reçu';
+    }
+  }
 }
 
 class _PaymentCard extends StatelessWidget {
@@ -706,6 +787,18 @@ class _BookingPaymentsState {
   bool loadedOnce = false;
   String? error;
   DateTime fromDate = _defaultFromDate();
+  BookingPaymentStatus? statusFilter;
+  bool showFilters = false;
+
+  bool get hasActiveFilter =>
+      !_isDefaultDateStatic(fromDate) || statusFilter != null;
+}
+
+bool _isDefaultDateStatic(DateTime date) {
+  final defaultDate = _defaultFromDate();
+  return date.year == defaultDate.year &&
+      date.month == defaultDate.month &&
+      date.day == defaultDate.day;
 }
 
 DateTime _defaultFromDate() {
