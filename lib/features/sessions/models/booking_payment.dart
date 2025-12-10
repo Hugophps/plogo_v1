@@ -152,8 +152,7 @@ class BookingPayment {
 
   bool get canDriverMark =>
       role == BookingPaymentRole.driver &&
-      status == BookingPaymentStatus.toPay &&
-      hasAmount;
+      status == BookingPaymentStatus.toPay;
 
   bool get canDriverCancel =>
       role == BookingPaymentRole.driver &&
