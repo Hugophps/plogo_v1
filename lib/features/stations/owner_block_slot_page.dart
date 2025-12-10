@@ -198,7 +198,16 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
 
     var startValue = _startTime;
     if (!startOptions.contains(startValue)) {
-      startValue = startOptions.first;
+      final preferredMinutes = _preferredStartMinutes();
+      if (preferredMinutes != null) {
+        final preferredOption = startOptions.firstWhere(
+          (option) => _minutesFromTime(option) >= preferredMinutes,
+          orElse: () => startOptions.last,
+        );
+        startValue = preferredOption;
+      } else {
+        startValue = startOptions.first;
+      }
     }
 
     final newEndOptions = _buildEndOptionsForStart(
@@ -303,6 +312,15 @@ class _OwnerBlockSlotPageState extends State<OwnerBlockSlotPage> {
       _endTime = nextEndTime;
       _error = null;
     });
+  }
+
+  int? _preferredStartMinutes() {
+    final now = nowInBrussels();
+    final sameDay = now.year == _selectedDate.year &&
+        now.month == _selectedDate.month &&
+        now.day == _selectedDate.day;
+    if (!sameDay) return null;
+    return _roundToQuarter(_minutesFromDate(now));
   }
 
   Future<void> _pickDate() async {

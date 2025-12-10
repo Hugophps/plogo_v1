@@ -301,8 +301,8 @@ class _AuthGateState extends State<AuthGate> {
             });
             return station;
           },
-          title: 'CrÃƒÂ©ation de votre borne',
-          submitLabel: 'Valider et crÃƒÂ©er',
+          title: 'Création de votre borne',
+          submitLabel: 'Valider et créer',
           initialStation: null,
         ),
       ),

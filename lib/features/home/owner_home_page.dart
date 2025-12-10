@@ -106,7 +106,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     final link = _station?.whatsappGroupUrl;
     if (link == null || link.isEmpty) {
       _showSnackBar(
-        'Ajoutez le lien du groupe WhatsApp depuis les param\u00e8tres de la borne.',
+        "Ajoutez le lien du groupe WhatsApp depuis les paramètres de la borne.",
       );
       return;
     }
@@ -116,7 +116,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
       return;
     }
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _showSnackBar('Impossible d\u2019ouvrir WhatsApp.');
+      _showSnackBar("Impossible d'ouvrir WhatsApp.");
     }
   }
 
@@ -130,7 +130,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     final station = _station;
     if (station == null) {
       _showSnackBar(
-        'Publiez votre borne pour acc\u00e9der \u00e0 son agenda.',
+        "Publiez votre borne pour accéder à son agenda.",
       );
       return;
     }
@@ -148,11 +148,25 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     }
   }
 
+  bool _isOwnerMember(StationMember member) {
+    final station = _station;
+    if (station == null) return false;
+    return member.profile.id == station.ownerId;
+  }
+
   int get _approvedCount =>
-      _members?.where((member) => member.isApproved).length ?? 0;
+      _members
+          ?.where(
+              (member) => member.isApproved && !_isOwnerMember(member))
+          .length ??
+      0;
 
   int get _pendingCount =>
-      _members?.where((member) => member.isPending).length ?? 0;
+      _members
+          ?.where(
+              (member) => member.isPending && !_isOwnerMember(member))
+          .length ??
+      0;
 
   String _initialsFromName(String? fullName) {
     if (fullName == null || fullName.trim().isEmpty) return 'P';

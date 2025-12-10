@@ -135,7 +135,10 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
         throw Exception("Format d'image non supporté.");
       }
 
-      final resized = img.copyResize(decoded, width: 100, height: 100);
+      const maxDimension = 400;
+      final resized = decoded.width >= decoded.height
+          ? img.copyResize(decoded, width: maxDimension)
+          : img.copyResize(decoded, height: maxDimension);
       int quality = 90;
       late List<int> encoded;
       do {
