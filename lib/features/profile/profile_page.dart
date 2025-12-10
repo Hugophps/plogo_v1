@@ -2,10 +2,10 @@
 
 import '../../core/app_metadata.dart';
 import '../profile/models/profile.dart';
-import 'profile_data_page.dart';
 import 'profile_edit_page.dart';
 import 'profile_legal_page.dart';
 import 'profile_settings_page.dart';
+import 'profile_sessions_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
@@ -53,10 +53,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _openData() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ProfileDataPage()));
+  Future<void> _openSessions() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileSessionsPage()),
+    );
   }
 
   Future<void> _openSettings() async {
@@ -170,7 +170,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: 'Modifier mon profil',
                 onTap: _openEdit,
               ),
-              _ProfileMenuButton(label: 'Données', onTap: _openData),
+              _ProfileMenuButton(
+                label: 'Sessions de charges',
+                onTap: _openSessions,
+              ),
               _ProfileMenuButton(label: 'Paramètres', onTap: _openSettings),
               _ProfileMenuButton(
                 label: 'CGU',

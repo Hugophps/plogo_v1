@@ -8,7 +8,9 @@ import {
 } from "../_shared/enode.ts";
 import {
   DriverChargingError,
+  ensureBookingPaymentRecord,
   loadDriverStationContext,
+  updateBookingPaymentTotals,
 } from "../_shared/driver_charging.ts";
 import { createSupabaseClient } from "../_shared/supabase.ts";
 
@@ -31,6 +33,14 @@ type SlotSummary = {
   id: string | null;
   start_at: string | null;
   end_at: string | null;
+};
+
+type SlotRow = {
+  id: string;
+  station_id: string;
+  start_at: string;
+  end_at: string;
+  metadata: Record<string, unknown> | null;
 };
 
 const corsHeaders = {
@@ -116,6 +126,35 @@ Deno.serve(async (req) => {
       );
     }
 
+    const slot = await getSlotById(supabase, session.slot_id);
+    if (!slot) {
+      throw new DriverChargingError(
+        "Impossible de retrouver les informations du créneau.",
+        500,
+      );
+    }
+
+    const membershipId = slot.metadata?.["membership_id"];
+    if (!membershipId || typeof membershipId !== "string") {
+      throw new DriverChargingError(
+        "Créneau de réservation invalide.",
+        500,
+      );
+    }
+
+    await ensureBookingPaymentRecord(
+      supabase,
+      {
+        stationId: slot.station_id,
+        slotId: slot.id,
+        membershipId,
+        driverId: user.id,
+        ownerId: context.station.owner_id,
+        stationName: context.station.name,
+        slotStartAt: slot.start_at,
+      },
+    );
+
     const stopAction = await controlChargerCharging(
       context.station.enode_charger_id,
       "STOP",
@@ -162,6 +201,14 @@ Deno.serve(async (req) => {
         500,
       );
     }
+
+    await updateBookingPaymentTotals(
+      supabase,
+      {
+        slotId: slot.id,
+        slotEndAt: slot.end_at,
+      },
+    );
 
     return new Response(
       JSON.stringify({
@@ -314,4 +361,25 @@ function handleError(error: unknown) {
     }),
     { status: 500, headers: withJson(corsHeaders) },
   );
+}
+
+async function getSlotById(
+  supabase: ReturnType<typeof createSupabaseClient>,
+  slotId: string | null,
+): Promise<SlotRow | null> {
+  if (!slotId) return null;
+  const { data, error } = await supabase
+    .from("station_slots")
+    .select("id, station_id, start_at, end_at, metadata")
+    .eq("id", slotId)
+    .maybeSingle();
+
+  if (error) {
+    throw new DriverChargingError(
+      "Impossible de récupérer le créneau réservé.",
+      500,
+    );
+  }
+
+  return data as SlotRow | null;
 }

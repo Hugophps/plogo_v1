@@ -140,3 +140,192 @@ export async function getActiveSlotForMembership(
 
   return data[0] as SlotRow;
 }
+
+type BookingPaymentRow = {
+  id: string;
+  status: string;
+  driver_marked_at: string | null;
+  owner_marked_at: string | null;
+};
+
+type BookingPaymentStatus =
+  | "upcoming"
+  | "in_progress"
+  | "to_pay"
+  | "driver_marked"
+  | "paid";
+
+export async function ensureBookingPaymentRecord(
+  supabase: SupabaseClient,
+  params: {
+    stationId: string;
+    slotId: string;
+    membershipId: string;
+    driverId: string;
+    ownerId: string;
+    stationName: string | null;
+    slotStartAt: string;
+    initialStatus?: BookingPaymentStatus;
+  },
+): Promise<string> {
+  const { data: existing, error } = await supabase
+    .from("station_booking_payments")
+    .select("id")
+    .eq("slot_id", params.slotId)
+    .maybeSingle();
+
+  if (error) {
+    throw new DriverChargingError(
+      "Impossible de préparer le suivi de paiement.",
+      500,
+    );
+  }
+
+  if (existing?.id) {
+    return existing.id as string;
+  }
+
+  const status = params.initialStatus ??
+    (new Date(params.slotStartAt).getTime() <= Date.now()
+      ? "in_progress"
+      : "upcoming");
+
+  const paymentReference = generatePaymentReference(
+    params.stationName,
+    params.slotStartAt,
+    params.slotId,
+  );
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("station_booking_payments")
+    .insert({
+      station_id: params.stationId,
+      slot_id: params.slotId,
+      membership_id: params.membershipId,
+      driver_profile_id: params.driverId,
+      owner_profile_id: params.ownerId,
+      status,
+      payment_reference: paymentReference,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !inserted) {
+    console.error("ensureBookingPaymentRecord insert error", insertError);
+    throw new DriverChargingError(
+      "Impossible de suivre la session réservée.",
+      500,
+    );
+  }
+
+  return inserted.id as string;
+}
+
+export async function updateBookingPaymentTotals(
+  supabase: SupabaseClient,
+  params: {
+    slotId: string;
+    slotEndAt: string;
+  },
+) {
+  const { data: paymentRow, error: paymentError } = await supabase
+    .from("station_booking_payments")
+    .select("id, status, driver_marked_at, owner_marked_at")
+    .eq("slot_id", params.slotId)
+    .maybeSingle();
+
+  if (paymentError) {
+    throw new DriverChargingError(
+      "Impossible de récupérer les informations de paiement.",
+      500,
+    );
+  }
+
+  if (!paymentRow) {
+    return;
+  }
+
+  const { data: sessionRows, error: sessionsError } = await supabase
+    .from("station_charging_sessions")
+    .select("energy_kwh, amount_eur")
+    .eq("slot_id", params.slotId);
+
+  if (sessionsError) {
+    throw new DriverChargingError(
+      "Impossible de recalculer le montant du créneau.",
+      500,
+    );
+  }
+
+  let totalEnergy = 0;
+  let totalAmount = 0;
+  for (const row of sessionRows ?? []) {
+    const energy = typeof row.energy_kwh === "number"
+      ? row.energy_kwh
+      : null;
+    const amount = typeof row.amount_eur === "number"
+      ? row.amount_eur
+      : null;
+    if (energy) totalEnergy += energy;
+    if (amount) totalAmount += amount;
+  }
+
+  const hasAmount = totalAmount > 0.009;
+  const slotEnded = Date.parse(params.slotEndAt) <= Date.now();
+  let nextStatus = paymentRow.status as BookingPaymentStatus;
+  if (
+    slotEnded && hasAmount &&
+    (nextStatus === "upcoming" || nextStatus === "in_progress")
+  ) {
+    nextStatus = "to_pay";
+  } else if (
+    !slotEnded &&
+    nextStatus === "upcoming"
+  ) {
+    nextStatus = "in_progress";
+  }
+
+  const { error: updateError } = await supabase
+    .from("station_booking_payments")
+    .update({
+      total_energy_kwh: hasAmount ? totalEnergy : null,
+      total_amount: hasAmount ? roundCurrency(totalAmount) : null,
+      status: nextStatus,
+    })
+    .eq("id", paymentRow.id as string);
+
+  if (updateError) {
+    console.error("updateBookingPaymentTotals error", updateError);
+    throw new DriverChargingError(
+      "Impossible de mettre à jour le paiement de ce créneau.",
+      500,
+    );
+  }
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+export function generatePaymentReference(
+  stationName: string | null,
+  slotStartIso: string,
+  slotId?: string,
+): string {
+  const sanitized = (stationName ?? "PLOGO")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  const prefix = sanitized.slice(0, 6) || "PLOGO";
+  const slotDate = new Date(slotStartIso);
+  const yy = slotDate.getUTCFullYear().toString().slice(-2);
+  const mm = `${slotDate.getUTCMonth() + 1}`.padStart(2, "0");
+  const dd = `${slotDate.getUTCDate()}`.padStart(2, "0");
+  const hh = `${slotDate.getUTCHours()}`.padStart(2, "0");
+  const min = `${slotDate.getUTCMinutes()}`.padStart(2, "0");
+  const seed = `${prefix}${yy}${mm}${dd}${hh}${min}`;
+  const slotSuffix = slotId
+    ? slotId.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(-4)
+    : "00";
+  const combined = `${seed}${slotSuffix}`;
+  return combined.slice(0, 20);
+}

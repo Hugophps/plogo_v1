@@ -7,6 +7,7 @@ import {
 } from "../_shared/enode.ts";
 import {
   DriverChargingError,
+  ensureBookingPaymentRecord,
   getActiveSlotForMembership,
   loadDriverStationContext,
 } from "../_shared/driver_charging.ts";
@@ -121,6 +122,20 @@ Deno.serve(async (req) => {
         400,
       );
     }
+
+    await ensureBookingPaymentRecord(
+      supabase,
+      {
+        stationId,
+        slotId: slot.id,
+        membershipId: context.membership.id,
+        driverId: user.id,
+        ownerId: context.station.owner_id,
+        stationName: context.station.name,
+        slotStartAt: slot.start_at,
+        initialStatus: "in_progress",
+      },
+    );
 
     const existingSession = await getActiveSession(
       supabase,
