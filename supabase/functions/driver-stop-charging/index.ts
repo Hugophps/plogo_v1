@@ -158,6 +158,7 @@ Deno.serve(async (req) => {
     const stopAction = await controlChargerCharging(
       context.station.enode_charger_id,
       "STOP",
+      context.owner.enode_user_id ?? undefined,
     );
 
     const stats = await collectSessionStats(

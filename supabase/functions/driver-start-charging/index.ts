@@ -167,6 +167,7 @@ Deno.serve(async (req) => {
     const startAction = await controlChargerCharging(
       context.station.enode_charger_id,
       "START",
+      context.owner.enode_user_id ?? undefined,
     );
 
     const metadata = {

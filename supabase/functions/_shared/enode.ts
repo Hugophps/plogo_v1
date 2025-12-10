@@ -172,9 +172,14 @@ type ChargerActionKind = "START" | "STOP";
 export async function controlChargerCharging(
   chargerId: string,
   action: ChargerActionKind,
+  userId?: string,
 ) {
+  const path = userId
+    ? `/users/${userId}/chargers/${chargerId}/charging`
+    : `/chargers/${chargerId}/charging`;
+
   return await enodeJson(
-    `/chargers/${chargerId}/charging`,
+    path,
     {
       method: "POST",
       body: JSON.stringify({ action }),

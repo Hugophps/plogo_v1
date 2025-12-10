@@ -150,9 +150,30 @@ class BookingPayment {
 
   bool get hasAmount => (totalAmount ?? 0) > 0;
 
+  BookingPaymentStatus get resolvedStatus {
+    final slotStart = slot.startAt;
+    final slotEnd = slot.endAt;
+    final now = DateTime.now();
+
+    if (status == BookingPaymentStatus.upcoming) {
+      if (!slotStart.isAfter(now) && slotEnd.isAfter(now)) {
+        return BookingPaymentStatus.inProgress;
+      }
+      if (!slotEnd.isAfter(now)) {
+        return BookingPaymentStatus.toPay;
+      }
+    }
+
+    if (status == BookingPaymentStatus.inProgress && !slotEnd.isAfter(now)) {
+      return BookingPaymentStatus.toPay;
+    }
+
+    return status;
+  }
+
   bool get canDriverMark =>
       role == BookingPaymentRole.driver &&
-      status == BookingPaymentStatus.toPay;
+      resolvedStatus == BookingPaymentStatus.toPay;
 
   bool get canDriverCancel =>
       role == BookingPaymentRole.driver &&
@@ -161,14 +182,16 @@ class BookingPayment {
 
   bool get canOwnerConfirm =>
       role == BookingPaymentRole.owner &&
-      status == BookingPaymentStatus.driverMarked;
+      resolvedStatus == BookingPaymentStatus.driverMarked;
 
   bool get canOwnerRevert =>
       role == BookingPaymentRole.owner &&
-      status == BookingPaymentStatus.paid;
+      resolvedStatus == BookingPaymentStatus.paid;
 
   bool get noChargeCompleted =>
-      status == BookingPaymentStatus.inProgress && slot.isPast && !hasAmount;
+      resolvedStatus == BookingPaymentStatus.inProgress &&
+      slot.isPast &&
+      !hasAmount;
 
   String get amountLabel {
     final amount = totalAmount;
@@ -187,7 +210,7 @@ class BookingPayment {
   }
 
   String statusLabel(BookingPaymentRole displayRole) {
-    switch (status) {
+    switch (resolvedStatus) {
       case BookingPaymentStatus.upcoming:
         return 'À venir';
       case BookingPaymentStatus.inProgress:
