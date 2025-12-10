@@ -2,6 +2,7 @@
 
 import '../../core/app_metadata.dart';
 import '../profile/models/profile.dart';
+import '../sessions/models/booking_payment.dart';
 import 'profile_edit_page.dart';
 import 'profile_legal_page.dart';
 import 'profile_settings_page.dart';
@@ -54,8 +55,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _openSessions() async {
+    final role = _profile.isOwner
+        ? BookingPaymentRole.owner
+        : BookingPaymentRole.driver;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProfileSessionsPage()),
+      MaterialPageRoute(
+        builder: (_) => ProfileSessionsPage(role: role),
+      ),
     );
   }
 

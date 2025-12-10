@@ -5,75 +5,52 @@ import '../sessions/booking_payment_repository.dart';
 import '../sessions/models/booking_payment.dart';
 
 class ProfileSessionsPage extends StatefulWidget {
-  const ProfileSessionsPage({super.key});
+  const ProfileSessionsPage({super.key, required this.role});
+
+  final BookingPaymentRole role;
 
   @override
   State<ProfileSessionsPage> createState() => _ProfileSessionsPageState();
 }
 
-class _ProfileSessionsPageState extends State<ProfileSessionsPage>
-    with SingleTickerProviderStateMixin {
+class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
   final BookingPaymentRepository _repository = const BookingPaymentRepository();
-  late final TabController _tabController;
-  BookingPaymentRole _currentRole = BookingPaymentRole.driver;
-  final Map<BookingPaymentRole, _BookingPaymentsState> _states = {
-    BookingPaymentRole.driver: _BookingPaymentsState(),
-    BookingPaymentRole.owner: _BookingPaymentsState(),
-  };
+  final _BookingPaymentsState _state = _BookingPaymentsState();
   final Set<String> _pendingSlots = <String>{};
+  late BookingPaymentRole _role;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
-      final role =
-          _tabController.index == 0 ? BookingPaymentRole.driver : BookingPaymentRole.owner;
-      _switchRole(role);
-    });
-    _fetchRole(BookingPaymentRole.driver, force: true);
+    _role = widget.role;
+    _fetchPayments(force: true);
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  Future<void> _fetchPayments({bool force = false}) async {
+    if (_state.isLoading) return;
+    if (!force && _state.loadedOnce) return;
 
-  void _switchRole(BookingPaymentRole role) {
-    setState(() => _currentRole = role);
-    final state = _states[role]!;
-    if (!state.loadedOnce && !state.isLoading) {
-      _fetchRole(role, force: true);
-    }
-  }
-
-  Future<void> _fetchRole(BookingPaymentRole role, {bool force = false}) async {
-    final state = _states[role]!;
-    if (state.isLoading) return;
-    if (!force && state.loadedOnce) return;
     setState(() {
-      state.isLoading = true;
-      state.error = null;
-      if (!force) _currentRole = role;
+      _state.isLoading = true;
+      _state.error = null;
     });
+
     try {
-      final items = await _repository.fetchPayments(role);
+      final items = await _repository.fetchPayments(_role);
       if (!mounted) return;
       setState(() {
-        state.items = items;
-        state.loadedOnce = true;
+        _state.items = items;
+        _state.loadedOnce = true;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        state.error = error.toString();
+        _state.error = error.toString();
       });
     } finally {
       if (!mounted) return;
       setState(() {
-        state.isLoading = false;
+        _state.isLoading = false;
       });
     }
   }
@@ -92,32 +69,11 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage>
           tooltip: 'Retour',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF2C75FF),
-          labelColor: Colors.black87,
-          tabs: const [
-            Tab(text: 'Conducteur'),
-            Tab(text: 'Propriétaire'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _buildRoleView(BookingPaymentRole.driver),
-          _buildRoleView(BookingPaymentRole.owner),
-        ],
+      body: RefreshIndicator.adaptive(
+        onRefresh: () => _fetchPayments(force: true),
+        child: _buildRoleContent(_role, _state),
       ),
-    );
-  }
-
-  Widget _buildRoleView(BookingPaymentRole role) {
-    final state = _states[role]!;
-    return RefreshIndicator.adaptive(
-      onRefresh: () => _fetchRole(role, force: true),
-      child: _buildRoleContent(role, state),
     );
   }
 
@@ -139,7 +95,7 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage>
         children: [
           _ErrorCard(
             message: state.error!,
-            onRetry: () => _fetchRole(role, force: true),
+            onRetry: () => _fetchPayments(force: true),
           ),
         ],
       );
@@ -246,14 +202,11 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage>
 
   void _applyUpdatedPayment(BookingPayment updated) {
     setState(() {
-      for (final role in BookingPaymentRole.values) {
-        final state = _states[role]!;
-        final index = state.items.indexWhere((item) => item.slotId == updated.slotId);
-        if (index == -1) continue;
-        final list = state.items.toList();
-        list[index] = role == updated.role ? updated : updated.copyForRole(role);
-        state.items = list;
-      }
+      final index = _state.items.indexWhere((item) => item.slotId == updated.slotId);
+      if (index == -1) return;
+      final list = _state.items.toList();
+      list[index] = updated;
+      _state.items = list;
     });
   }
 
@@ -397,7 +350,7 @@ class _PaymentCard extends StatelessWidget {
       ),
     );
   }
-
+*** End**EOF
   Widget _buildActions() {
     if (onDriverAction != null) {
       if (payment.canDriverMark) {
