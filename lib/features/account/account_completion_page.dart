@@ -174,14 +174,27 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
 
     setState(() => _saving = true);
     try {
-      String? avatarUrl = _remoteAvatarUrl;
+      final description = _descriptionController.text.trim();
+      final addressData = _buildAddressPayload(_selectedAddress!);
+      final payload = {
+        'full_name': _fullNameController.text.trim(),
+        'phone_number': _phoneController.text.trim(),
+        'description': description.isEmpty ? null : description,
+        'vehicle_brand': _vehicleBrandController.text.trim(),
+        'vehicle_model': _vehicleModelController.text.trim(),
+        'vehicle_plate': _vehiclePlateController.text.trim(),
+        'avatar_url': _remoteAvatarUrl,
+        'profile_completed': true,
+        ...addressData,
+      };
+
+      await _repo.upsertProfile(payload);
+
       if (_avatarBytes != null) {
         final user = supabase.auth.currentUser;
         if (user == null) throw Exception('Utilisateur non connecté');
         final path = 'avatars/${user.id}.jpg';
-        await supabase.storage
-            .from('avatars')
-            .uploadBinary(
+        await supabase.storage.from('avatars').uploadBinary(
               path,
               _avatarBytes!,
               fileOptions: const FileOptions(
@@ -189,23 +202,10 @@ class _AccountCompletionPageState extends State<AccountCompletionPage> {
                 contentType: 'image/jpeg',
               ),
             );
-        avatarUrl = supabase.storage.from('avatars').getPublicUrl(path);
+        final avatarUrl = supabase.storage.from('avatars').getPublicUrl(path);
+        _remoteAvatarUrl = avatarUrl;
+        await _repo.upsertProfile({'avatar_url': avatarUrl});
       }
-
-      final description = _descriptionController.text.trim();
-      final addressData = _buildAddressPayload(_selectedAddress!);
-
-      await _repo.upsertProfile({
-        'full_name': _fullNameController.text.trim(),
-        'phone_number': _phoneController.text.trim(),
-        'description': description.isEmpty ? null : description,
-        'vehicle_brand': _vehicleBrandController.text.trim(),
-        'vehicle_model': _vehicleModelController.text.trim(),
-        'vehicle_plate': _vehiclePlateController.text.trim(),
-        'avatar_url': avatarUrl,
-        'profile_completed': true,
-        ...addressData,
-      });
 
       if (!mounted) return;
       widget.onCompleted();
