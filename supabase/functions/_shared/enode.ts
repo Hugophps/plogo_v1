@@ -178,17 +178,32 @@ export async function controlChargerCharging(
     ? `/users/${userId}/chargers/${chargerId}/charging`
     : `/chargers/${chargerId}/charging`;
 
-  return await enodeJson(
-    path,
-    {
-      method: "POST",
-      body: JSON.stringify({ action }),
-    },
-    undefined,
-    action === "START"
-      ? "Impossible de démarrer la charge Enode."
-      : "Impossible d'arrêter la charge Enode.",
-  );
+  const makeRequest = async (targetPath: string) => {
+    return await enodeJson(
+      targetPath,
+      {
+        method: "POST",
+        body: JSON.stringify({ action }),
+      },
+      undefined,
+      action === "START"
+        ? "Impossible de démarrer la charge Enode."
+        : "Impossible d'arrêter la charge Enode.",
+    );
+  };
+
+  try {
+    return await makeRequest(path);
+  } catch (error) {
+    if (userId && error instanceof EnodeApiError && error.status === 404) {
+      console.warn(
+        "Enode charger endpoint not found for user scope, falling back.",
+        { userId, chargerId },
+      );
+      return await makeRequest(`/chargers/${chargerId}/charging`);
+    }
+    throw error;
+  }
 }
 
 export async function fetchChargerSessionsStats(
