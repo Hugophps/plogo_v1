@@ -350,7 +350,7 @@ class _PaymentCard extends StatelessWidget {
       ),
     );
   }
-*** End**EOF
+
   Widget _buildActions() {
     if (onDriverAction != null) {
       if (payment.canDriverMark) {
