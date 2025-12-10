@@ -39,9 +39,10 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
       final items = await _repository.fetchPayments(_role);
       if (!mounted) return;
       setState(() {
-        _state.items = items;
+        _state.allItems = items;
         _state.loadedOnce = true;
       });
+      _applyFilters();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -101,37 +102,25 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
       );
     }
 
-    if (state.items.isEmpty) {
-      final emptyText = role == BookingPaymentRole.driver
-          ? 'Aucune session réservée pour le moment.'
-          : 'Aucune session sur vos bornes pour l’instant.';
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.2),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              children: [
-                const Icon(Icons.ev_station, size: 64, color: Color(0xFF2C75FF)),
-                const SizedBox(height: 12),
-                Text(
-                  emptyText,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
+    final payments = state.items;
+    final showEmptyState = payments.isEmpty;
+    final extraItems = showEmptyState ? 1 : 0;
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      itemCount: state.items.length,
+      itemCount: payments.length + 1 + extraItems,
       itemBuilder: (context, index) {
-        final payment = state.items[index];
+        if (index == 0) {
+          return _buildFilterHeader(role);
+        }
+
+        if (showEmptyState && index == 1) {
+          return _buildEmptyState(role);
+        }
+
+        final paymentIndex = index - 1 - extraItems;
+        final payment = payments[paymentIndex];
         final slotKey = payment.slotId ?? '';
         return _PaymentCard(
           payment: payment,
@@ -201,13 +190,29 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
   }
 
   void _applyUpdatedPayment(BookingPayment updated) {
+    bool replaced = false;
+
+    List<BookingPayment> _replace(List<BookingPayment> source) {
+      return source.map((item) {
+        if (item.slotId == updated.slotId) {
+          replaced = true;
+          return updated;
+        }
+        return item;
+      }).toList();
+    }
+
     setState(() {
-      final index = _state.items.indexWhere((item) => item.slotId == updated.slotId);
-      if (index == -1) return;
-      final list = _state.items.toList();
-      list[index] = updated;
-      _state.items = list;
+      _state.allItems = _replace(_state.allItems);
+      if (!replaced) {
+        // Nothing to update, bail out early.
+        return;
+      }
     });
+
+    if (replaced) {
+      _applyFilters();
+    }
   }
 
   Future<void> _copyReference(String reference) async {
@@ -225,6 +230,139 @@ class _ProfileSessionsPageState extends State<ProfileSessionsPage> {
       ),
     );
   }
+
+  Future<void> _pickFromDate() async {
+    final initial = _state.fromDate;
+    final now = DateTime.now();
+    final firstDate = now.subtract(const Duration(days: 365 * 2));
+    final lastDate = now.add(const Duration(days: 365));
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+    if (selected != null) {
+      setState(() {
+        _state.fromDate = DateTime(selected.year, selected.month, selected.day);
+      });
+      _applyFilters();
+    }
+  }
+
+  void _resetFromDate() {
+    setState(() {
+      _state.fromDate = _defaultFromDate();
+    });
+    _applyFilters();
+  }
+
+  void _applyFilters({bool rebuild = true}) {
+    final from = DateTime(
+      _state.fromDate.year,
+      _state.fromDate.month,
+      _state.fromDate.day,
+    );
+    final filtered = _state.allItems.where((payment) {
+      final start = payment.slot.startAt;
+      return !start.isBefore(from);
+    }).toList();
+
+    if (rebuild) {
+      if (!mounted) return;
+      setState(() {
+        _state.items = filtered;
+      });
+    } else {
+      _state.items = filtered;
+    }
+  }
+
+  Widget _buildFilterHeader(BookingPaymentRole role) {
+    final dateText = _formatDate(_state.fromDate);
+    final showReset = !_isDefaultFromDate(_state.fromDate);
+    final subtitle = role == BookingPaymentRole.driver
+        ? "Affiche vos sessions réservées depuis cette date."
+        : "Affiche les sessions de vos membres depuis cette date.";
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Filtrer par date',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickFromDate,
+                    icon: const Icon(Icons.calendar_today, size: 18),
+                    label: Text('Depuis le $dateText'),
+                  ),
+                ),
+                if (showReset)
+                  TextButton(
+                    onPressed: _resetFromDate,
+                    child: const Text('Réinitialiser'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BookingPaymentRole role) {
+    final emptyText = role == BookingPaymentRole.driver
+        ? 'Aucune session réservée depuis cette date.'
+        : 'Aucune session sur vos bornes depuis cette date.';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        children: [
+          const Icon(Icons.ev_station, size: 64, color: Color(0xFF2C75FF)),
+          const SizedBox(height: 12),
+          Text(
+            emptyText,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isDefaultFromDate(DateTime date) {
+    final defaultDate = _defaultFromDate();
+    return date.year == defaultDate.year &&
+        date.month == defaultDate.month &&
+        date.day == defaultDate.day;
+  }
+
+  String _formatDate(DateTime date) {
+    return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year}';
+  }
+
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
 }
 
 class _PaymentCard extends StatelessWidget {
@@ -562,8 +700,16 @@ class _ErrorCard extends StatelessWidget {
 }
 
 class _BookingPaymentsState {
+  List<BookingPayment> allItems = const [];
   List<BookingPayment> items = const [];
   bool isLoading = false;
   bool loadedOnce = false;
   String? error;
+  DateTime fromDate = _defaultFromDate();
+}
+
+DateTime _defaultFromDate() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day)
+      .subtract(const Duration(days: 30));
 }
