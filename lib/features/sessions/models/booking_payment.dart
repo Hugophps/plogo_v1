@@ -188,12 +188,11 @@ class BookingPayment {
   }
 
   String statusLabel(BookingPaymentRole displayRole) {
-    if (noChargeCompleted) return 'Terminé';
     switch (status) {
       case BookingPaymentStatus.upcoming:
         return 'À venir';
       case BookingPaymentStatus.inProgress:
-        return slot.isActive ? 'En cours' : 'Planifié';
+        return 'En cours';
       case BookingPaymentStatus.toPay:
         return displayRole == BookingPaymentRole.driver
             ? 'À payer'
