@@ -3,8 +3,9 @@
 
 import {
   EnodeApiError,
-  controlChargerCharging,
   fetchChargerSessionsStats,
+  refreshCharger,
+  stopChargerCharging,
 } from "../_shared/enode.ts";
 import {
   DriverChargingError,
@@ -12,6 +13,11 @@ import {
   loadDriverStationContext,
   updateBookingPaymentTotals,
 } from "../_shared/driver_charging.ts";
+import {
+  extractEnodeActionId,
+  handleDriverEnodeError,
+  mergeRawEnodePayload,
+} from "../_shared/driver_enode.ts";
 import { createSupabaseClient } from "../_shared/supabase.ts";
 
 type Payload = { station_id?: string };
@@ -27,6 +33,9 @@ type SessionRow = {
   energy_kwh: number | null;
   amount_eur: number | null;
   enode_metadata: Record<string, unknown> | null;
+  enode_action_start_id: string | null;
+  enode_action_stop_id: string | null;
+  raw_enode_payload: Record<string, unknown> | null;
 };
 
 type SlotSummary = {
@@ -155,12 +164,27 @@ Deno.serve(async (req) => {
       },
     );
 
-    const stopAction = await controlChargerCharging(
-      context.station.enode_charger_id,
-      "STOP",
-      context.owner.enode_user_id ?? undefined,
-    );
+    let stopAction: unknown;
+    try {
+      // Appel Enode pour synchroniser l’arrêt réel de la charge avec l’action Plogo
+      stopAction = await stopChargerCharging(
+        context.station.enode_charger_id,
+      );
+    } catch (error) {
+      handleDriverEnodeError(
+        "driver-stop-charging",
+        error,
+        "Impossible d'arrêter la charge Enode.",
+      );
+    }
 
+    try {
+      await refreshCharger(context.station.enode_charger_id);
+    } catch (refreshError) {
+      console.warn("driver-stop-charging refresh error", refreshError);
+    }
+
+    // TODO: appeler ensuite l’endpoint Enode approprié pour enrichir les mesures d’énergie si nécessaire.
     const stats = await collectSessionStats(
       context.owner.enode_user_id,
       context.station.enode_charger_id,
@@ -173,6 +197,13 @@ Deno.serve(async (req) => {
       stop_action: stopAction ?? null,
       stats_session: stats ?? null,
     };
+    const rawPayload = mergeRawEnodePayload(
+      session.raw_enode_payload,
+      {
+        stop_action: stopAction ?? null,
+        stats_session: stats ?? null,
+      },
+    );
 
     const energyKwh = typeof stats?.kwhSum === "number"
       ? stats.kwhSum
@@ -190,6 +221,8 @@ Deno.serve(async (req) => {
         energy_kwh: energyKwh,
         amount_eur: amountEur,
         enode_metadata: updatedMetadata,
+        enode_action_stop_id: extractEnodeActionId(stopAction),
+        raw_enode_payload: rawPayload,
       })
       .eq("id", session.id)
       .select("*")

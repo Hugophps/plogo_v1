@@ -1,13 +1,17 @@
 const ENODE_CLIENT_ID = Deno.env.get("ENODE_CLIENT_ID") ?? "";
 const ENODE_CLIENT_SECRET = Deno.env.get("ENODE_CLIENT_SECRET") ?? "";
-const ENODE_API_URL = Deno.env.get("ENODE_API_URL") ?? "";
 const ENODE_OAUTH_URL = Deno.env.get("ENODE_OAUTH_URL") ?? "";
 const ENODE_REDIRECT_URI = Deno.env.get("ENODE_REDIRECT_URI") ?? "";
 const ENODE_STATE_SECRET = Deno.env.get("ENODE_STATE_SECRET") ?? "";
+const ENODE_API_URL = Deno.env.get("ENODE_API_BASE_URL") ??
+  Deno.env.get("ENODE_API_URL") ??
+  "";
+const ENODE_API_KEY = Deno.env.get("ENODE_API_KEY");
 
 if (
-  !ENODE_CLIENT_ID || !ENODE_CLIENT_SECRET || !ENODE_API_URL ||
-  !ENODE_OAUTH_URL || !ENODE_REDIRECT_URI || !ENODE_STATE_SECRET
+  !ENODE_API_URL || !ENODE_REDIRECT_URI || !ENODE_STATE_SECRET ||
+  (!ENODE_API_KEY &&
+    (!ENODE_CLIENT_ID || !ENODE_CLIENT_SECRET || !ENODE_OAUTH_URL))
 ) {
   throw new Error("Missing Enode configuration");
 }
@@ -52,9 +56,15 @@ type TokenCache = { token: string; expiresAt: number } | null;
 let cachedToken: TokenCache = null;
 
 async function fetchAccessToken(): Promise<string> {
+  if (ENODE_API_KEY) return ENODE_API_KEY;
+
   const now = Date.now();
   if (cachedToken && cachedToken.expiresAt > now + 30_000) {
     return cachedToken.token;
+  }
+
+  if (!ENODE_CLIENT_ID || !ENODE_CLIENT_SECRET || !ENODE_OAUTH_URL) {
+    throw new Error("Missing Enode OAuth configuration");
   }
 
   const basicAuth = btoa(`${ENODE_CLIENT_ID}:${ENODE_CLIENT_SECRET}`);
@@ -169,41 +179,39 @@ export async function enodeJson(
 
 type ChargerActionKind = "START" | "STOP";
 
-export async function controlChargerCharging(
-  chargerId: string,
-  action: ChargerActionKind,
-  userId?: string,
-) {
-  const path = userId
-    ? `/users/${userId}/chargers/${chargerId}/charging`
-    : `/chargers/${chargerId}/charging`;
+export async function startChargerCharging(chargerId: string) {
+  return await enodeJson(
+    `/chargers/${chargerId}/charging`,
+    {
+      method: "POST",
+      body: JSON.stringify({ action: "START" satisfies ChargerActionKind }),
+    },
+    undefined,
+    "Impossible de démarrer la charge Enode.",
+  );
+}
 
-  const makeRequest = async (targetPath: string) => {
-    return await enodeJson(
-      targetPath,
-      {
-        method: "POST",
-        body: JSON.stringify({ action }),
-      },
-      undefined,
-      action === "START"
-        ? "Impossible de démarrer la charge Enode."
-        : "Impossible d'arrêter la charge Enode.",
-    );
-  };
+export async function stopChargerCharging(chargerId: string) {
+  return await enodeJson(
+    `/chargers/${chargerId}/charging`,
+    {
+      method: "POST",
+      body: JSON.stringify({ action: "STOP" satisfies ChargerActionKind }),
+    },
+    undefined,
+    "Impossible d'arrêter la charge Enode.",
+  );
+}
 
-  try {
-    return await makeRequest(path);
-  } catch (error) {
-    if (userId && error instanceof EnodeApiError && error.status === 404) {
-      console.warn(
-        "Enode charger endpoint not found for user scope, falling back.",
-        { userId, chargerId },
-      );
-      return await makeRequest(`/chargers/${chargerId}/charging`);
-    }
-    throw error;
-  }
+export async function refreshCharger(chargerId: string) {
+  return await enodeJson(
+    `/chargers/${chargerId}/refresh-hint`,
+    {
+      method: "POST",
+    },
+    undefined,
+    "Impossible de rafraîchir l'état de la borne.",
+  );
 }
 
 export async function fetchChargerSessionsStats(

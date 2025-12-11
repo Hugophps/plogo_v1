@@ -3,7 +3,7 @@
 
 import {
   EnodeApiError,
-  controlChargerCharging,
+  startChargerCharging,
 } from "../_shared/enode.ts";
 import {
   DriverChargingError,
@@ -11,6 +11,11 @@ import {
   getActiveSlotForMembership,
   loadDriverStationContext,
 } from "../_shared/driver_charging.ts";
+import {
+  extractEnodeActionId,
+  handleDriverEnodeError,
+  mergeRawEnodePayload,
+} from "../_shared/driver_enode.ts";
 import { createSupabaseClient } from "../_shared/supabase.ts";
 
 type Payload = {
@@ -28,6 +33,9 @@ type SessionRow = {
   energy_kwh: number | null;
   amount_eur: number | null;
   enode_metadata: Record<string, unknown> | null;
+  enode_action_start_id: string | null;
+  enode_action_stop_id: string | null;
+  raw_enode_payload: Record<string, unknown> | null;
 };
 
 type SlotSummary = {
@@ -164,16 +172,28 @@ Deno.serve(async (req) => {
         .eq("id", existingSession.id);
     }
 
-    const startAction = await controlChargerCharging(
-      context.station.enode_charger_id,
-      "START",
-      context.owner.enode_user_id ?? undefined,
-    );
+    let startAction: unknown;
+    try {
+      // Appel Enode pour synchroniser le démarrage réel de la charge avec l’action Plogo
+      startAction = await startChargerCharging(
+        context.station.enode_charger_id,
+      );
+    } catch (error) {
+      handleDriverEnodeError(
+        "driver-start-charging",
+        error,
+        "Impossible de démarrer la charge Enode.",
+      );
+    }
 
     const metadata = {
       start_action: startAction ?? null,
       slot: serializeSlot(slot),
     };
+    const rawPayload = mergeRawEnodePayload(
+      null,
+      { start_action: startAction ?? null },
+    );
 
     const { data: inserted, error: insertError } = await supabase
       .from("station_charging_sessions")
@@ -183,11 +203,9 @@ Deno.serve(async (req) => {
         slot_id: slot.id,
         status: "in_progress",
         start_at: nowIso,
-        enode_action_id: typeof (startAction as Record<string, unknown>)?.["id"]
-            === "string"
-          ? (startAction as Record<string, unknown>)["id"] as string
-          : null,
+        enode_action_start_id: extractEnodeActionId(startAction),
         enode_metadata: metadata,
+        raw_enode_payload: rawPayload,
       })
       .select("*")
       .single();
