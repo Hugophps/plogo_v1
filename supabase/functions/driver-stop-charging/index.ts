@@ -5,7 +5,6 @@ import {
   EnodeApiError,
   fetchChargerSessionsStats,
   refreshCharger,
-  stopChargerCharging,
 } from "../_shared/enode.ts";
 import {
   DriverChargingError,
@@ -14,8 +13,9 @@ import {
   updateBookingPaymentTotals,
 } from "../_shared/driver_charging.ts";
 import {
+  callEnodeChargingAction,
+  EnodeHttpError,
   extractEnodeActionId,
-  handleDriverEnodeError,
   mergeRawEnodePayload,
 } from "../_shared/driver_enode.ts";
 import { createSupabaseClient } from "../_shared/supabase.ts";
@@ -164,19 +164,11 @@ Deno.serve(async (req) => {
       },
     );
 
-    let stopAction: unknown;
-    try {
-      // Appel Enode pour synchroniser l’arrêt réel de la charge avec l’action Plogo
-      stopAction = await stopChargerCharging(
-        context.station.enode_charger_id,
-      );
-    } catch (error) {
-      handleDriverEnodeError(
-        "driver-stop-charging",
-        error,
-        "Impossible d'arrêter la charge Enode.",
-      );
-    }
+    const stopAction = await callEnodeChargingAction({
+      chargerId: context.station.enode_charger_id,
+      action: "STOP",
+      contextLabel: "driver-stop-charging",
+    });
 
     try {
       await refreshCharger(context.station.enode_charger_id);
@@ -366,6 +358,20 @@ function withJson(headers: Record<string, string>) {
 }
 
 function handleError(error: unknown) {
+  if (error instanceof EnodeHttpError) {
+    return new Response(
+      JSON.stringify({
+        error: "Erreur Enode lors de l'arrêt de la charge.",
+        enode_status: error.status,
+        enode_body: error.body,
+        context: error.context,
+      }),
+      {
+        status: error.status >= 500 ? 502 : error.status,
+        headers: withJson(corsHeaders),
+      },
+    );
+  }
   if (error instanceof EnodeApiError) {
     return new Response(
       JSON.stringify({ error: error.message }),

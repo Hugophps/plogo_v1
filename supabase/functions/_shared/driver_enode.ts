@@ -1,5 +1,16 @@
-import { EnodeApiError } from "./enode.ts";
-import { DriverChargingError } from "./driver_charging.ts";
+import { enodeFetch } from "./enode.ts";
+
+export type ChargerActionKind = "START" | "STOP";
+
+export class EnodeHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: string | null,
+    readonly context: string,
+  ) {
+    super(`Erreur Enode (${context})`);
+  }
+}
 
 export function extractEnodeActionId(action: unknown): string | null {
   if (action && typeof action === "object" && !Array.isArray(action)) {
@@ -21,22 +32,43 @@ export function mergeRawEnodePayload(
   };
 }
 
-export function handleDriverEnodeError(
-  context: string,
-  error: unknown,
-  fallbackMessage: string,
-): never {
-  if (error instanceof EnodeApiError) {
-    console.error(`${context} Enode error`, {
-      status: error.status,
-      body: error.body ?? null,
-    });
-    throw new DriverChargingError(
-      error.message || fallbackMessage,
-      error.status || 502,
+export async function callEnodeChargingAction(params: {
+  chargerId: string;
+  action: ChargerActionKind;
+  contextLabel: string;
+}): Promise<Record<string, unknown> | null> {
+  const response = await enodeFetch(
+    `/chargers/${params.chargerId}/charging`,
+    {
+      method: "POST",
+      body: JSON.stringify({ action: params.action }),
+    },
+  );
+
+  const bodyText = await response.text();
+  const safeBody = bodyText ?? "";
+  console.log(
+    `ENODE DEBUG → ${params.contextLabel} status: ${response.status} body: ${
+      safeBody || "<empty>"
+    }`,
+  );
+
+  if (!response.ok) {
+    console.error(
+      `ENODE ERROR → ${params.contextLabel} status: ${response.status} body: ${
+        safeBody || "<empty>"
+      }`,
     );
+    throw new EnodeHttpError(response.status, safeBody || null, params.contextLabel);
   }
 
-  console.error(`${context} unexpected error`, error);
-  throw new DriverChargingError(fallbackMessage, 500);
+  if (!safeBody) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(safeBody) as Record<string, unknown>;
+  } catch (_) {
+    return { raw: safeBody };
+  }
 }

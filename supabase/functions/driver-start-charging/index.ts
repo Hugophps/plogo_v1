@@ -1,10 +1,7 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="deno.unstable" />
 
-import {
-  EnodeApiError,
-  startChargerCharging,
-} from "../_shared/enode.ts";
+import { EnodeApiError } from "../_shared/enode.ts";
 import {
   DriverChargingError,
   ensureBookingPaymentRecord,
@@ -12,8 +9,9 @@ import {
   loadDriverStationContext,
 } from "../_shared/driver_charging.ts";
 import {
+  callEnodeChargingAction,
+  EnodeHttpError,
   extractEnodeActionId,
-  handleDriverEnodeError,
   mergeRawEnodePayload,
 } from "../_shared/driver_enode.ts";
 import { createSupabaseClient } from "../_shared/supabase.ts";
@@ -172,19 +170,11 @@ Deno.serve(async (req) => {
         .eq("id", existingSession.id);
     }
 
-    let startAction: unknown;
-    try {
-      // Appel Enode pour synchroniser le démarrage réel de la charge avec l’action Plogo
-      startAction = await startChargerCharging(
-        context.station.enode_charger_id,
-      );
-    } catch (error) {
-      handleDriverEnodeError(
-        "driver-start-charging",
-        error,
-        "Impossible de démarrer la charge Enode.",
-      );
-    }
+    const startAction = await callEnodeChargingAction({
+      chargerId: context.station.enode_charger_id,
+      action: "START",
+      contextLabel: "driver-start-charging",
+    });
 
     const metadata = {
       start_action: startAction ?? null,
@@ -289,6 +279,20 @@ function withJson(headers: Record<string, string>) {
 }
 
 function handleError(error: unknown) {
+  if (error instanceof EnodeHttpError) {
+    return new Response(
+      JSON.stringify({
+        error: "Erreur Enode lors du démarrage de la charge.",
+        enode_status: error.status,
+        enode_body: error.body,
+        context: error.context,
+      }),
+      {
+        status: error.status >= 500 ? 502 : error.status,
+        headers: withJson(corsHeaders),
+      },
+    );
+  }
   if (error instanceof EnodeApiError) {
     return new Response(
       JSON.stringify({ error: error.message }),
