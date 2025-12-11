@@ -72,3 +72,40 @@ export async function callEnodeChargingAction(params: {
     return { raw: safeBody };
   }
 }
+
+export async function fetchEnodeChargerAction(params: {
+  actionId: string;
+  contextLabel: string;
+}): Promise<Record<string, unknown> | null> {
+  const response = await enodeFetch(`/chargers/actions/${params.actionId}`);
+  const bodyText = await response.text();
+  const safeBody = bodyText ?? "";
+  console.log(
+    `ENODE DEBUG → ${params.contextLabel} status: ${response.status} body: ${
+      safeBody || "<empty>"
+    }`,
+  );
+
+  if (!response.ok) {
+    console.error(
+      `ENODE ERROR → ${params.contextLabel} status: ${response.status} body: ${
+        safeBody || "<empty>"
+      }`,
+    );
+    throw new EnodeHttpError(
+      response.status,
+      safeBody || null,
+      params.contextLabel,
+    );
+  }
+
+  if (!safeBody) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(safeBody) as Record<string, unknown>;
+  } catch (_) {
+    return { raw: safeBody };
+  }
+}
